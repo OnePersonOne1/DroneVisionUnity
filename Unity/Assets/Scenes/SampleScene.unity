@@ -2410,6 +2410,71 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1988874441
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1988874443}
+  - component: {fileID: 1988874442}
+  m_Layer: 0
+  m_Name: SensorViewMode
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1988874442
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1988874441}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95e2f73be3dbb17fe8fe7779188df143, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DroneSim.C2.SensorViewMode
+  sensorDisplayIndex: 3
+  activateDisplayOnStart: 1
+  toggleKey: 35
+  attitudeKey: 101
+  flipKey: 100
+  isActive: 0
+  freeAttitude: 0
+  flipRoll180: 1
+  fieldOfView: 60
+  nearClip: 0.1
+  farClip: 10000000
+  backgroundColor: {r: 0.05, g: 0.07, b: 0.1, a: 1}
+  renderLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  mouseSensitivity: 0.2
+  minPitch: -85
+  maxPitch: 85
+  udp: {fileID: 0}
+  replay: {fileID: 0}
+  showOnGuiBadge: 1
+--- !u!4 &1988874443
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1988874441}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -27038.26, y: 20859.53, z: -7854.332}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2073641652
 GameObject:
   m_ObjectHideFlags: 0
@@ -2513,3 +2578,4 @@ SceneRoots:
   - {fileID: 861547213}
   - {fileID: 1458141270}
   - {fileID: 1512775915}
+  - {fileID: 1988874443}
