@@ -92,5 +92,5 @@ Thumbs.db
 *.avi
 *.mkv
 CLAUDE.md
-  .claude/
-  .~lock.*
+.claude/
+.~lock.*

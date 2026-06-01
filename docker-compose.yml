@@ -1,0 +1,21 @@
+version: "2.3"
+services:
+  rf_detr_docker: # container name
+    container_name: ipwebcam_rfdetr_container
+    image: hanmyeongil/ipwebcam_rfdetr:v1
+    # image: hanmyeongil/yolox_han:v2 # imgae name
+    # image: pytorch/pytorch:1.12.1-cuda11.3-cudnn8-devel # old
+    runtime: nvidia
+    tty: true
+    shm_size: "32gb" # shared memory size
+    ulimits:                                                                              
+      memlock: -1 # -1: unlimited
+      stack: 67108864 # stack memory size, aprx 64mb   
+    volumes: # sync with local, no copy                                    
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro # GUI program                                            
+      - /mnt/ssd_0/workspace:/workspace # link with docker's workspace
+      - /mnt/ssd_0/dataset:/dataset # link with docker's dataset
+    environment:                                                                          
+      - DISPLAY=$DISPLAY # monitor display                                                       
+      - NVIDIA_VISIBLE_DEVICES=all # using all GPU, if you want to select, use 0, 1, ...
+
