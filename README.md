@@ -47,7 +47,7 @@ UDP/CSV 페이로드: `class_name, class_id, confidence, u, v, cam_lat, cam_lng,
 1. Unity Hub 에서 `Unity/` 폴더를 6000.4.0f1 로 연다. 첫 실행 시 `Library/` 가 자동 생성된다.
 2. `Assets/Scenes/SampleScene.unity` 를 연다. 드론·카메라·맵·HUD 가 모두 구성돼 있다.
 3. 추론 마커 표시가 필요하면 빈 GameObject 에 `ProjectionUdpReceiver` 컴포넌트를 추가한다. 씬에 `CubeGPSDisplay` 가 있으면 보정 값(앵커 위경도, 스케일, 기준 건물)이 자동 동기화된다.
-4. CSV 오프라인 재생이 필요하면 별도 GameObject 에 `ProjectionReplay` 를 추가하고 `Projection Csv Path` 에 `output/<session>/projection/*.csv` 절대 경로를 지정한다.
+4. CSV 오프라인 재생이 필요하면 별도 GameObject 에 `ProjectionReplay` 를 추가하고 `Projection Csv Path` 에 CSV 파일 **절대 경로**를 지정한다. Unity 의 작업 디렉토리는 프로젝트 루트가 아니므로 상대 경로는 동작하지 않는다. 예: `/home/user/DroneVisionUnity/output/20260529_122735/projection/projection_20260529_122735.csv` (Windows: `C:\Users\...\projection_*.csv`). 파일을 찾지 못하면 콘솔에 `[ProjectionReplay] CSV not found: '...'` 가 뜬다.
 5. GPS 순간이동(텔레포트) 기능은 `GpsTeleport` 컴포넌트로 사용한다. `Y` 키로 Cube 현재 GPS 복사, `T` 키로 오버라이드 토글.
 
 ### 드론 시뮬레이션 활성화
