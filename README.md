@@ -38,7 +38,7 @@ UDP/CSV 페이로드: `class_name, class_id, confidence, u, v, cam_lat, cam_lng,
 - Python 3.11
   - `rfdetr`, `supervision`, `opencv-python`, `numpy`, `pillow`
   - `info_service/` 사용 시: `fastapi`, `uvicorn`, `shapely`, `requests`
-- RF-DETR 가중치 `Models/checkpoint_best_total.pth` (약 485 MB)
+- RF-DETR 가중치 `Models/checkpoint_best_total.pth` (약 485 MB, 별도 다운로드 — 아래 "자산 다운로드" 참고)
 - (라이브 모드 시) IP Webcam 등 영상·센서 송신 소스
 - (LLM 기능 사용 시) 로컬 Ollama 서버 + 모델
 
@@ -64,6 +64,15 @@ UDP/CSV 페이로드: `class_name, class_id, confidence, u, v, cam_lat, cam_lng,
 5. `finally.fbx` 자식 메시에 Mesh Collider 가 부착돼 있는지 확인한다. 없으면 Project 창의 fbx 를 Inspector ▸ Model ▸ Add Colliders 옵션 활성화 후 다시 드래그한다.
 
 Play 시 Cube 앞 5 m 에 십자 막대 드론이 spawn 된다. 추가 spawn 은 백쿼트(`` ` ``), 모드 토글은 F10.
+
+## 자산 다운로드
+
+GitHub 저장소에는 100 MB 이상의 RF-DETR 가중치 및 캡처 세션이 포함되지 않는다. 아래 링크에서 받아 명시된 경로에 둔다.
+
+| 파일 | 다운로드 | 저장 위치 |
+|---|---|---|
+| RF-DETR 가중치 (~485 MB) | TODO: Google Drive 링크 | `Models/checkpoint_best_total.pth` |
+| 데모 캡처 세션 zip (~145 MB) | TODO: Google Drive 링크 | 받아서 `output/` 에 풀기 (`output/20260529_122735/` 가 됨) |
 
 ## Python 실행
 
