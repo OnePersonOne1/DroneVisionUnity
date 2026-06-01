@@ -34,7 +34,7 @@ namespace DroneSim.C2.StrategicView
         public float meMarkerRadius = 12f;
         public float targetMarkerRadius = 9f;
         public float queueMarkerRadius = 5f;
-        public int labelFontSize = 14;
+        public int labelFontSize = 18;
         public float labelBgPaddingX = 4f;
         public float labelBgPaddingY = 2f;
 
@@ -48,8 +48,11 @@ namespace DroneSim.C2.StrategicView
         public bool showDetectionMarkers = true;
         public float detectionMarkerRadius = 11f;
         public bool showLegend = true;
-        public Vector2 legendSize = new Vector2(220f, 200f);
-        public Vector2 legendMargin = new Vector2(20f, 20f);
+        public Vector2 legendSize = new Vector2(340f, 320f);
+        public Vector2 legendMargin = new Vector2(24f, 24f);
+
+        [Header("디버그 HUD 박스")]
+        public Vector2 debugHudSize = new Vector2(720f, 180f);
 
         [Header("경로 라인 (드론 → target → 큐)")]
         public bool showPathLines = true;
@@ -60,11 +63,18 @@ namespace DroneSim.C2.StrategicView
         public bool showDebugHud = true;
         public Vector2 debugHudMargin = new Vector2(20f, 20f);
 
-        [Header("스케일 바")]
+        [Header("스케일 바 (HUD 박스 바로 위, 좌하단 기준)")]
         public bool showScaleBar = true;
-        public Vector2 scaleBarMargin = new Vector2(20f, 70f);
-        public float scaleBarTargetPixels = 200f;
-        public Color scaleBarColor = new Color(1f, 1f, 1f, 0.85f);
+        [Tooltip("HUD 박스 위로 띄울 간격 (픽셀).")]
+        public float scaleBarGapAboveHud = 18f;
+        public float scaleBarTargetPixels = 220f;
+        public Color scaleBarColor = new Color(1f, 1f, 1f, 0.9f);
+
+        [Header("레이아웃 튜너 (런타임 슬라이더)")]
+        [Tooltip("F9 로 IMGUI 슬라이더 창 토글. 모든 박스/폰트 크기를 라이브 조정.")]
+        public bool showLayoutTuner = false;
+        public UnityEngine.InputSystem.Key tunerToggleKey = UnityEngine.InputSystem.Key.F9;
+        public Rect tunerWindow = new Rect(20f, 20f, 380f, 540f);
 
         StrategicViewBootstrap _bootstrap;
         StrategicCommandInput _input;
@@ -76,6 +86,7 @@ namespace DroneSim.C2.StrategicView
             public RectTransform rt;
             public UIShape labelBg;
             public RectTransform labelBgRt;
+            public RectTransform labelRt;
         }
 
         Marker _meDot;
@@ -93,6 +104,9 @@ namespace DroneSim.C2.StrategicView
 
         RectTransform _legendRoot;
         TextMeshProUGUI[] _legendCountTexts;
+        UIShape _legendBgShape;
+        RectTransform _debugHudRoot;
+        UIShape _debugHudBg;
 
         readonly Dictionary<string, UIShape> _pathLines = new Dictionary<string, UIShape>();
         readonly List<Vector2> _polyBuf = new List<Vector2>();
@@ -102,6 +116,76 @@ namespace DroneSim.C2.StrategicView
         TextMeshProUGUI _scaleBarText;
         float _scaleFromBootstrap = 1f;
         bool _scaleResolved;
+
+        void Update()
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb[tunerToggleKey].wasPressedThisFrame)
+                showLayoutTuner = !showLayoutTuner;
+        }
+
+        void OnGUI()
+        {
+            if (!showLayoutTuner) return;
+            tunerWindow = GUI.Window(GetInstanceID() ^ 0x4754, tunerWindow, DrawTunerWindow, "HUD Layout — F9");
+        }
+
+        void DrawTunerWindow(int id)
+        {
+            GUILayout.Label("Font", EditorStyle());
+            labelFontSize = (int)SliderRow("Label Font Size", labelFontSize, 8, 40);
+
+            GUILayout.Space(8);
+            GUILayout.Label("Debug HUD (좌하단)", EditorStyle());
+            debugHudMargin.x = SliderRow("Margin X", debugHudMargin.x, 0f, 200f);
+            debugHudMargin.y = SliderRow("Margin Y", debugHudMargin.y, 0f, 200f);
+            debugHudSize.x = SliderRow("Width", debugHudSize.x, 200f, 1500f);
+            debugHudSize.y = SliderRow("Height", debugHudSize.y, 60f, 400f);
+
+            GUILayout.Space(8);
+            GUILayout.Label("Legend (우상단)", EditorStyle());
+            legendMargin.x = SliderRow("Margin X", legendMargin.x, 0f, 200f);
+            legendMargin.y = SliderRow("Margin Y", legendMargin.y, 0f, 200f);
+            legendSize.x = SliderRow("Width", legendSize.x, 150f, 500f);
+            legendSize.y = SliderRow("Height", legendSize.y, 100f, 500f);
+
+            GUILayout.Space(8);
+            GUILayout.Label("Scale Bar", EditorStyle());
+            scaleBarGapAboveHud = SliderRow("Gap Above HUD", scaleBarGapAboveHud, 0f, 100f);
+            scaleBarTargetPixels = SliderRow("Target Px", scaleBarTargetPixels, 80f, 500f);
+
+            GUILayout.Space(8);
+            GUILayout.Label("배경 색 알파", EditorStyle());
+            labelBgColor.a = SliderRow("BG Alpha", labelBgColor.a, 0f, 1f);
+
+            GUILayout.Space(8);
+            showDebugHud = GUILayout.Toggle(showDebugHud, " Show Debug HUD");
+            showLegend = GUILayout.Toggle(showLegend, " Show Legend");
+            showScaleBar = GUILayout.Toggle(showScaleBar, " Show Scale Bar");
+            showPathLines = GUILayout.Toggle(showPathLines, " Show Path Lines");
+            showDetectionMarkers = GUILayout.Toggle(showDetectionMarkers, " Show Detection Markers");
+
+            GUI.DragWindow();
+        }
+
+        GUIStyle _hStyle;
+        GUIStyle EditorStyle()
+        {
+            if (_hStyle == null)
+            {
+                _hStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
+            }
+            return _hStyle;
+        }
+
+        float SliderRow(string label, float val, float min, float max)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"{label}: {val:F1}", GUILayout.Width(160));
+            val = GUILayout.HorizontalSlider(val, min, max);
+            GUILayout.EndHorizontal();
+            return val;
+        }
 
         void Awake()
         {
@@ -222,7 +306,9 @@ namespace DroneSim.C2.StrategicView
                     _droneDots[agent.agentId] = m;
                 }
                 m.shape.color = isSel ? selectedColor : droneColor;
-                string newText = DroneNumber(agent.agentId);
+                float aglM = 0f;
+                GroundAgl.TryGetAgl(agent.highFidelity.PositionUnity, agent.highFidelity.UnityUnitsPerMeter, ~0, out aglM);
+                string newText = $"{DroneNumber(agent.agentId)}\nAGL: {aglM:F1} m";
                 if (m.label.text != newText) { m.label.text = newText; ResizeLabelBg(m, newText); }
                 PlaceMarker(m, agent.highFidelity.PositionUnity, cam);
             }
@@ -337,6 +423,14 @@ namespace DroneSim.C2.StrategicView
         {
             if (_legendRoot == null) BuildLegend(canvasRt);
             _legendRoot.gameObject.SetActive(true);
+            // 매 프레임 사이즈/색 갱신 (튜너로 라이브 변경 반영).
+            _legendRoot.anchoredPosition = new Vector2(-legendMargin.x, -legendMargin.y);
+            _legendRoot.sizeDelta = legendSize;
+            if (_legendBgShape != null)
+            {
+                _legendBgShape.color = labelBgColor;
+                BuildRect(_legendBgShape, legendSize.x, legendSize.y);
+            }
             // 클래스별 카운트 갱신.
             var live = DetectionMarker.All;
             for (int i = 0; i < DetectionClasses.All.Length; i++)
@@ -347,6 +441,8 @@ namespace DroneSim.C2.StrategicView
                 for (int j = 0; j < live.Count; j++)
                     if (live[j] != null && live[j].className == entry.name) count++;
                 _legendCountTexts[i].text = $"{entry.ko}: {count}";
+                _legendCountTexts[i].fontSize = labelFontSize;
+                _legendCountTexts[i].color = labelColor;
             }
         }
 
@@ -368,10 +464,8 @@ namespace DroneSim.C2.StrategicView
             bgRt.anchorMax = new Vector2(1f, 1f);
             bgRt.pivot = new Vector2(0.5f, 0.5f);
             bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
-            var bg = bgGo.AddComponent<UIShape>();
-            bg.color = labelBgColor;
-            bg.raycastTarget = false;
-            BuildRect(bg, legendSize.x, legendSize.y);
+            _legendBgShape = bgGo.AddComponent<UIShape>();
+            _legendBgShape.raycastTarget = false;
 
             // 타이틀
             var titleGo = new GameObject("Title");
@@ -528,8 +622,7 @@ namespace DroneSim.C2.StrategicView
                 var rt = go.AddComponent<RectTransform>();
                 rt.SetParent(canvasRt, false);
                 rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 0f);   // bottom-left
-                rt.anchoredPosition = debugHudMargin;
-                rt.sizeDelta = new Vector2(400f, 80f);
+                _debugHudRoot = rt;
                 // bg
                 var bgGo = new GameObject("Bg");
                 var bgRt = bgGo.AddComponent<RectTransform>();
@@ -537,10 +630,8 @@ namespace DroneSim.C2.StrategicView
                 bgRt.anchorMin = new Vector2(0f, 0f);
                 bgRt.anchorMax = new Vector2(1f, 1f);
                 bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
-                var bg = bgGo.AddComponent<UIShape>();
-                bg.color = labelBgColor;
-                bg.raycastTarget = false;
-                BuildRect(bg, rt.sizeDelta.x, rt.sizeDelta.y);
+                _debugHudBg = bgGo.AddComponent<UIShape>();
+                _debugHudBg.raycastTarget = false;
                 // text
                 var textGo = new GameObject("Text");
                 var trt = textGo.AddComponent<RectTransform>();
@@ -552,12 +643,18 @@ namespace DroneSim.C2.StrategicView
                 _debugHudText = textGo.AddComponent<TextMeshProUGUI>();
                 _debugHudText.alignment = TextAlignmentOptions.TopLeft;
                 _debugHudText.color = labelColor;
-                _debugHudText.fontSize = labelFontSize;
                 _debugHudText.raycastTarget = false;
                 var f = KoreanFont.Get();
                 if (f != null) _debugHudText.font = f;
             }
             _debugHudText.gameObject.SetActive(true);
+            // 매 프레임 사이즈/색 갱신 (튜너로 라이브 변경 반영).
+            _debugHudRoot.anchoredPosition = debugHudMargin;
+            _debugHudRoot.sizeDelta = debugHudSize;
+            _debugHudBg.color = labelBgColor;
+            BuildRect(_debugHudBg, debugHudSize.x, debugHudSize.y);
+            _debugHudText.fontSize = labelFontSize;
+            _debugHudText.color = labelColor;
 
             int total = DroneRegistry.Count;
             string sel = _input == null || _input.selectedDroneIds.Count == 0
@@ -576,13 +673,21 @@ namespace DroneSim.C2.StrategicView
                 var p = hf.PositionEnu;
                 var v = hf.VelocityEnu;
                 int pending = show.Waypoints.Pending;
-                status = $"<b>{show.agentId}</b>\n" +
-                         $"p=({p.X:F1}, {p.Y:F1}, {p.Z:F1}) m\n" +
-                         $"|v|={System.Math.Sqrt(v.X*v.X+v.Y*v.Y+v.Z*v.Z):F2} m/s   wp 잔여={pending}";
+                float vMag = (float)System.Math.Sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z);
+                float agl = 0f;
+                GroundAgl.TryGetAgl(hf.PositionUnity, hf.UnityUnitsPerMeter, ~0, out agl);
+                status = string.Format(
+                    "<b>{0}</b>\n" +
+                    "p = ({1,8:F1}, {2,8:F1}, {3,8:F1}) m\n" +
+                    "|v| = {4,6:F2} m/s   AGL = {5,7:F1} m   wp 잔여 = {6,3}",
+                    show.agentId, p.X, p.Y, p.Z, vMag, agl, pending);
             }
             else status = "(no drone)";
 
-            _debugHudText.text = $"드론 {total} 대   선택: {sel}\n{status}";
+            string altLine = _input != null
+                ? string.Format("   목표 AGL: {0,4:F0} m  (PgUp/PgDn/End, 1=10 2=30 3=50 4=100 5=200)", _input.commandAltitudeAGLMeters)
+                : "";
+            _debugHudText.text = $"드론 {total,2}대   선택: {sel}{altLine}\n{status}";
         }
 
         // ── 스케일 바 ────────────────────────────────────────────────────
@@ -620,20 +725,14 @@ namespace DroneSim.C2.StrategicView
             float niceMeters = NiceRound(targetMeters);
             float actualPx = niceMeters / metersPerPixel;
 
-            float x0 = scaleBarMargin.x;
-            float y0 = scaleBarMargin.y;
-            var verts = new Vector2[8] {
-                new Vector2(x0,             y0 - 1),       new Vector2(x0 + actualPx, y0 - 1),
-                new Vector2(x0 + actualPx,  y0 + 1),       new Vector2(x0,            y0 + 1),
-                new Vector2(x0,             y0 - 6),       new Vector2(x0 + 2f,       y0 - 6),
-                new Vector2(x0 + actualPx,  y0 - 6),       new Vector2(x0 + actualPx - 2f, y0 - 6),
-            };
-            // 단순화 — 가로 막대 한 줄만.
-            verts = new Vector2[4] {
-                new Vector2(x0,             y0 - 1.5f),
-                new Vector2(x0 + actualPx,  y0 - 1.5f),
-                new Vector2(x0 + actualPx,  y0 + 1.5f),
-                new Vector2(x0,             y0 + 1.5f),
+            // 위치: HUD 박스 바로 위 (debugHudMargin.y + debugHudSize.y + gap).
+            float x0 = debugHudMargin.x;
+            float y0 = debugHudMargin.y + debugHudSize.y + scaleBarGapAboveHud;
+            var verts = new Vector2[4] {
+                new Vector2(x0,             y0 - 2f),
+                new Vector2(x0 + actualPx,  y0 - 2f),
+                new Vector2(x0 + actualPx,  y0 + 2f),
+                new Vector2(x0,             y0 + 2f),
             };
             var tris = new int[6] { 0, 2, 1, 0, 3, 2 };
             _scaleBarShape.SetMesh(verts, tris);
@@ -641,7 +740,7 @@ namespace DroneSim.C2.StrategicView
 
             string lbl = niceMeters >= 1000f ? $"{niceMeters / 1000f:F1} km" : $"{niceMeters:F0} m";
             ((RectTransform)_scaleBarText.transform).anchoredPosition =
-                new Vector2(x0 + actualPx * 0.5f - 110f, y0 + 4f);
+                new Vector2(x0 + actualPx * 0.5f - 110f, y0 + 6f);
             _scaleBarText.text = lbl;
         }
 
@@ -713,19 +812,20 @@ namespace DroneSim.C2.StrategicView
             var f = KoreanFont.Get();
             if (f != null) t.font = f;
 
-            var m = new Marker { shape = s, label = t, rt = rt, labelBg = bg, labelBgRt = bgRt };
+            var m = new Marker { shape = s, label = t, rt = rt, labelBg = bg, labelBgRt = bgRt, labelRt = lrt };
             ResizeLabelBg(m, labelText);
             return m;
         }
 
-        /// <summary>label.text 의 preferred width 기준으로 bg 크기 갱신.</summary>
+        /// <summary>label.text 의 preferred size 기준으로 bg + label rect 둘 다 갱신.</summary>
         void ResizeLabelBg(Marker m, string text)
         {
             if (m.labelBg == null || m.label == null) return;
-            float prefW = m.label.GetPreferredValues(text).x;
-            float w = Mathf.Max(12f, prefW + labelBgPaddingX * 2f);
-            float h = labelFontSize + labelBgPaddingY * 2f;
+            Vector2 pref = m.label.GetPreferredValues(text);
+            float w = Mathf.Max(12f, pref.x + labelBgPaddingX * 2f);
+            float h = Mathf.Max(labelFontSize + labelBgPaddingY * 2f, pref.y + labelBgPaddingY * 2f);
             m.labelBgRt.sizeDelta = new Vector2(w, h);
+            if (m.labelRt != null) m.labelRt.sizeDelta = new Vector2(w, h);
             BuildRect(m.labelBg, w, h);
         }
 

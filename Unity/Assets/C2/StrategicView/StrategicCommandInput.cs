@@ -33,6 +33,17 @@ namespace DroneSim.C2.StrategicView
         [Header("경로 샘플링")]
         public float pathSampleIntervalSec = 0.06f;
 
+        [Header("고도 제어 (RMB 시 명령 고도)")]
+        [Tooltip("RMB SetWaypoint 시 wp 고도 = 지면 + 이 값(real m, AGL). 0 = 드론 현재 고도 유지.")]
+        public float commandAltitudeAGLMeters = 0f;
+        public float altitudeStepMeters = 5f;
+        public Key altitudeUpKey = Key.PageUp;
+        public Key altitudeDownKey = Key.PageDown;
+        public Key altitudeResetKey = Key.End;
+        [Tooltip("숫자 키 1~5: AGL 프리셋 (각각 10/30/50/100/200 m).")]
+        public bool enableNumericPresets = true;
+        public LayerMask groundMaskForAGL = ~0;
+
         [Header("시각화")]
         public Color boxColor = new Color(0.4f, 1f, 0.4f, 0.15f);
         public Color pathDotColor = new Color(0.4f, 1f, 0.4f, 0.9f);
@@ -104,6 +115,23 @@ namespace DroneSim.C2.StrategicView
             bool rmb = mouse.rightButton.wasPressedThisFrame;
             bool shift = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
             bool ctrl = kb != null && (kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
+
+            // 고도 키.
+            if (kb != null)
+            {
+                if (kb[altitudeUpKey].wasPressedThisFrame) commandAltitudeAGLMeters += altitudeStepMeters;
+                if (kb[altitudeDownKey].wasPressedThisFrame) commandAltitudeAGLMeters = Mathf.Max(0f, commandAltitudeAGLMeters - altitudeStepMeters);
+                if (kb[altitudeResetKey].wasPressedThisFrame) commandAltitudeAGLMeters = 0f;
+                if (enableNumericPresets)
+                {
+                    if (kb.digit1Key.wasPressedThisFrame) commandAltitudeAGLMeters = 10f;
+                    if (kb.digit2Key.wasPressedThisFrame) commandAltitudeAGLMeters = 30f;
+                    if (kb.digit3Key.wasPressedThisFrame) commandAltitudeAGLMeters = 50f;
+                    if (kb.digit4Key.wasPressedThisFrame) commandAltitudeAGLMeters = 100f;
+                    if (kb.digit5Key.wasPressedThisFrame) commandAltitudeAGLMeters = 200f;
+                    if (kb.digit0Key.wasPressedThisFrame) commandAltitudeAGLMeters = 0f;
+                }
+            }
 
             if (rmb) { HandleRmb(screen, shift); return; }
 
@@ -203,13 +231,20 @@ namespace DroneSim.C2.StrategicView
             {
                 if (agent.highFidelity == null) continue;
                 var hf = agent.highFidelity;
-                var enu = hf.UnityWorldToEnu(worldHit);
-                enu = new N.Vector3(enu.X, enu.Y, hf.PositionEnu.Z);   // 고도 유지
+                Vector3 wpWorld = worldHit;
+                if (commandAltitudeAGLMeters > 0f)
+                {
+                    float scale = hf.UnityUnitsPerMeter;
+                    wpWorld.y = worldHit.y + commandAltitudeAGLMeters * scale;
+                }
+                var enu = hf.UnityWorldToEnu(wpWorld);
+                if (commandAltitudeAGLMeters <= 0f)
+                    enu = new N.Vector3(enu.X, enu.Y, hf.PositionEnu.Z);   // 현 고도 유지
                 if (shift) FlightCommands.QueueWaypoint(agent.agentId, enu);
                 else FlightCommands.SetWaypoint(agent.agentId, enu);
                 sent++;
             }
-            Debug.Log($"[Cmd] {(shift ? "Queue" : "Set")}Waypoint(disp{displayIdx + 1}) → {sent} drones");
+            Debug.Log($"[Cmd] {(shift ? "Queue" : "Set")}Waypoint(disp{displayIdx + 1}) → {sent} drones, AGL={commandAltitudeAGLMeters:F0}m");
         }
 
         // ── Box Select 최종 ──────────────────────────────────────────────
@@ -255,10 +290,14 @@ namespace DroneSim.C2.StrategicView
                 if (agent.highFidelity == null) continue;
                 var hf = agent.highFidelity;
                 enuPath.Clear();
+                float scale = hf.UnityUnitsPerMeter;
                 foreach (var w in _pathPoints)
                 {
-                    var enu = hf.UnityWorldToEnu(w);
-                    enu = new N.Vector3(enu.X, enu.Y, hf.PositionEnu.Z);
+                    Vector3 wpWorld = w;
+                    if (commandAltitudeAGLMeters > 0f) wpWorld.y = w.y + commandAltitudeAGLMeters * scale;
+                    var enu = hf.UnityWorldToEnu(wpWorld);
+                    if (commandAltitudeAGLMeters <= 0f)
+                        enu = new N.Vector3(enu.X, enu.Y, hf.PositionEnu.Z);
                     enuPath.Add(enu);
                 }
                 FlightCommands.SetPath(agent.agentId, enuPath);

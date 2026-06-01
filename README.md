@@ -134,9 +134,29 @@ Cube (지도 시점 / GPS HUD):
 |---|---|
 | Display 1 | 1인칭(FP) 카메라 + HUD/UI |
 | Display 2 | 3인칭(Main) 카메라 |
-| Display 3 | 전략 보기 (탑다운 직교, 드론·타겟·검출 마커·범례·스케일 바) |
+| Display 3 | 전략 보기 (탑다운 직교, 드론·타겟·검출 마커·범례·스케일 바·AGL 라벨) |
+| Display 4 | 센서 시점 뷰 (`SensorViewMode`, 전용 카메라) — `U` 토글, `F8` FIXED/FREE, `F7` roll 180° 보정 |
 
-`MultiDisplayCoordinator` 가 시작 시 추가 디스플레이를 활성화하고 매 프레임 카메라 enabled 를 강제한다. Editor 단일 모니터 환경에서는 Game view 의 디스플레이 탭으로 전환해 확인한다.
+`MultiDisplayCoordinator` 가 Display 1/2/3 을 활성화하고 매 프레임 카메라 enabled / targetDisplay 를 강제한다. `SensorViewMode` 는 Display 4 카메라를 자체 생성·활성화한다. Editor 단일 모니터 환경에서는 Game view 의 디스플레이 탭으로 전환해 확인한다.
+
+## 추가 시각화 (월드 공간)
+
+- **드론 nametag** (`DroneNameTagManager`): 각 드론 머리 위 TextMeshPro 3D 라벨 `{N}\nAGL: {m} m`, 카메라 빌보드. 모든 디스플레이 공통.
+- **웨이포인트 시각화** (`WaypointWorldVisualizer`): 현재 타겟·큐 wp 에 **반투명 무한 높이 원기둥** + 드론→타겟→큐 경로 라인. URP 투명 머티리얼 자동 생성. 선택 wp 는 노랑, 비선택은 시안.
+- **AGL(지상고도)** (`GroundAgl`): 드론 위치에서 아래 방향 `Physics.Raycast`(terrain single-side 시 backface 폴백)로 지면까지 거리 / `unityUnitsPerMeter`. 라벨·전략 뷰 모두 동일 소스.
+
+## 명령 고도 프리셋 (전략 뷰)
+
+`StrategicCommandInput.commandAltitudeAGLMeters` 로 `SetWaypoint/SetPath` 의 wp 고도를 클릭한 지면 위 AGL 미터로 띄울 수 있다. `0` 이면 드론 현재 고도 유지.
+
+- `PgUp` / `PgDn` : ±5 m (`PgDn` 은 0 하한)
+- `End` : 0 (= 지면 그대로)
+- `1`–`5` : 10 / 30 / 50 / 100 / 200 m 프리셋
+- `0` : 리셋 (= 현재 고도 유지)
+
+## HUD 런타임 튜너
+
+`F9` 로 `StrategicViewHud` 의 IMGUI 슬라이더 창을 열어 debug HUD/범례/스케일 바의 크기·여백·폰트·알파 를 플레이 중 직접 조절한다. 변경값은 즉시 반영되며 매 프레임 백그라운드 박스가 다시 그려진다.
 
 ## 드론 시뮬레이션 어셈블리 구조
 
