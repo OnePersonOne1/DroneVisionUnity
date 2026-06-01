@@ -1,0 +1,93 @@
+# ── Unity 자동 생성 (재생성 가능) ──────────────────────────────
+Unity/Library/
+Unity/Temp/
+Unity/Obj/
+Unity/Build/
+Unity/Builds/
+Unity/Logs/
+Unity/UserSettings/
+Unity/MemoryCaptures/
+Unity/[Aa]ssets/AssetStoreTools*
+Unity/.vsconfig
+
+# Unity 가 만드는 솔루션/프로젝트 파일 (재생성 가능)
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.tmp
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+
+# 빌드 산출물
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# 백업 폴더 (병합 이전 자료, 무거움)
+Unity_HDRP_old/
+Unity_backup/
+incheon_source_backup/
+incheon_source_backup.zip
+*.zip
+
+# ── 모델 가중치 (>100 MB, Git LFS 필요) ───────────────────────
+Models/*.pth
+Models/*.pt
+Models/*.onnx
+Models/*.h5
+
+# ── 캡처/추론 출력 세션 ───────────────────────────────────────
+output/
+
+# ── Python ────────────────────────────────────────────────────
+Python/__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+.Python
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# 정보서비스 캐시·데이터
+Python/info_service/data/*.geojson
+Python/info_service/data/*.json
+Python/info_service/__pycache__/
+
+# ── 환경/시크릿 ──────────────────────────────────────────────
+.env
+.env.local
+*.key
+*credentials*.json
+
+# ── IDE / OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── 기타 큰 산출물 ────────────────────────────────────────────
+*.mp4
+*.mov
+*.avi
+*.mkv

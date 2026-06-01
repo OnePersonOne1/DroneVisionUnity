@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 996dd052c51a25b41af17c4a84d853c5, type: 3}
+  m_Name: FlightConfig
+  m_EditorClassIdentifier: FlightAdapter::DroneSim.Flight.UnityAdapter.FlightConfig
+  mass: 1
+  inertiaDiag: {x: 0.012, y: 0.012, z: 0.022}
+  arm: 0.18
+  kf: 0.000012
+  km: 0.0000002
+  maxRotorRadPerSec: 1500
+  linearDrag: {x: 0.1, y: 0.1, z: 0.2}
+  gravity: 9.81
+  fixedStep: 0.0025
+  unityUnitsPerMeter: 0
+  visualScale: 10
