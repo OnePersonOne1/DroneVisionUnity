@@ -24,10 +24,12 @@ public class Minimap : MonoBehaviour
     public LayerMask renderLayers = ~0;
     public Color backgroundColor = new Color(0.10f, 0.12f, 0.15f, 1f);
 
-    [Header("HUD 패널 (우상단)")]
+    [Header("HUD 패널 (좌하단)")]
     public int textureSize = 256;
-    public Vector2 panelSize = new Vector2(220f, 220f);
+    public Vector2 panelSize = new Vector2(260f, 260f);
     public Vector2 panelMargin = new Vector2(16f, 16f);
+    [Tooltip("0=좌하단(기본), 1=우상단, 2=좌상단, 3=우하단 — 시작 위치만. 이후 드래그로 자유 이동.")]
+    public int initialCorner = 0;
 
     [Header("드론 위치 마커 (원)")]
     public Color markerColor = Color.red;
@@ -143,17 +145,32 @@ public class Minimap : MonoBehaviour
         var panelGo = new GameObject("MinimapPanel");
         _panelRt = panelGo.AddComponent<RectTransform>();
         _panelRt.SetParent(canvas.transform, false);
-        _panelRt.anchorMin = _panelRt.anchorMax = _panelRt.pivot = new Vector2(1f, 1f);   // 우상단
+        // 시작 코너 — 0=좌하 / 1=우상 / 2=좌상 / 3=우하.
+        Vector2 a; Vector2 pos;
+        switch (initialCorner)
+        {
+            case 1:  a = new Vector2(1f, 1f); pos = new Vector2(-panelMargin.x, -panelMargin.y); break;
+            case 2:  a = new Vector2(0f, 1f); pos = new Vector2( panelMargin.x, -panelMargin.y); break;
+            case 3:  a = new Vector2(1f, 0f); pos = new Vector2(-panelMargin.x,  panelMargin.y); break;
+            default: a = new Vector2(0f, 0f); pos = new Vector2( panelMargin.x,  panelMargin.y); break;
+        }
+        _panelRt.anchorMin = _panelRt.anchorMax = _panelRt.pivot = a;
         _panelRt.sizeDelta = panelSize;
-        _panelRt.anchoredPosition = new Vector2(-panelMargin.x, -panelMargin.y);
+        _panelRt.anchoredPosition = pos;
+        // 드래그 가능하게 — raycastTarget=true 로.
         var raw = panelGo.AddComponent<RawImage>();
         raw.texture = _rt;
-        raw.raycastTarget = false;
+        raw.raycastTarget = true;
 
         // 그리기 순서: 맵(패널) → FOV → 위치원. (자식이 부모 위에, 뒤 자식이 앞 자식 아래)
         _fov = MakeShape("FovShape", fovColor);
         _circle = MakeShape("DroneCircle", markerColor);
         SetDisk(_circle, markerRadius, 24);   // 위치원은 정적
+
+        // 드래그+토글+접기 래퍼 — 모든 자식이 _panelRt 에 부착된 다음에 부착해야 한다.
+        var hud = panelGo.AddComponent<DraggableHud>();
+        hud.windowTitle = "Minimap";
+        hud.toggleKey = Key.M;
     }
 
     UIShape MakeShape(string name, Color c)

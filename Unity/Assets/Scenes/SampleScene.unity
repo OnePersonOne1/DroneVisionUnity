@@ -541,7 +541,7 @@ MonoBehaviour:
   droneId: drone_sim_obj_0
   target: {x: 10, y: 0, z: 5}
   rectSize: {x: 10, y: 10, z: 5}
-  showOnGui: 1
+  showOnGui: 0
   windowRect:
     serializedVersion: 2
     x: 10
@@ -1335,10 +1335,12 @@ MonoBehaviour:
   altitudeUpKey: 67
   altitudeDownKey: 66
   altitudeResetKey: 69
-  enableNumericPresets: 1
+  enableFunctionPresets: 1
   groundMaskForAGL:
     serializedVersion: 2
     m_Bits: 4294967295
+  stopAllKey: 1
+  enableControlGroups: 1
   boxColor: {r: 0.4, g: 1, b: 0.4, a: 0.15}
   pathDotColor: {r: 0.4, g: 1, b: 0.4, a: 0.9}
   pathDotRadius: 4
@@ -1826,10 +1828,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DroneSim.C2.DroneNameTagManager
   heightOffsetMeters: 2
+  useScreenSpaceSize: 1
+  screenPixelHeight: 40
   fontSizeMeters: 1.5
   textColor: {r: 1, g: 1, b: 1, a: 1}
+  showBackground: 1
   bgColor: {r: 0, g: 0, b: 0, a: 0.65}
+  bgScaleX: 0.1
+  bgScaleY: 0.1
+  bgOffsetMeters: {x: 0, y: -1.25}
+  bgFixedSizeMeters: {x: 0, y: 0}
   billboard: 1
+  minWorldFontMeters: 0.2
+  maxWorldFontMeters: 500
 --- !u!4 &1512775915
 Transform:
   m_ObjectHideFlags: 0
