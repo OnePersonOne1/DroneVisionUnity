@@ -21,10 +21,14 @@ namespace DroneSim.C2
         [Tooltip("드론 머리 위 띄울 높이 (real m, unityUnitsPerMeter 자동 곱). 라벨 '바닥' 이 이 높이.")]
         public float heightOffsetMeters = 3f;
 
-        [Header("폰트")]
-        [Tooltip("기준 거리(referenceDistanceMeters) 에서의 폰트 크기 (real m). " +
-                 "거리 비례 확대 ON 이면 멀어질수록 비례 증가.")]
-        public float fontSizeMeters = 3f;
+        [Header("폰트 크기 모드")]
+        [Tooltip("ON: constant screen-space — 카메라 거리·줌 무관 화면 픽셀 크기 일정 (MMO/RTS 표준). " +
+                 "OFF: 월드 m 고정 (가까이서 보면 크고 멀면 작아짐).")]
+        public bool useScreenSpaceSize = true;
+        [Tooltip("constant-screen 모드의 목표 픽셀 높이 — 거리 무관 이 픽셀 크기로 보임.")]
+        public float screenPixelHeight = 40f;
+        [Tooltip("OFF 모드에서 사용할 월드 폰트 크기 (real m).")]
+        public float fontSizeMeters = 1.5f;
         public Color textColor = Color.white;
 
         [Header("배경 박스")]
@@ -46,13 +50,11 @@ namespace DroneSim.C2
         [Tooltip("매 프레임 Camera.main 쪽으로 회전(수평 axis 유지).")]
         public bool billboard = true;
 
-        [Header("거리 비례 확대 (멀어도 보이게)")]
-        [Tooltip("켜면 카메라 거리에 비례해 폰트가 커진다. 끄면 fontSizeMeters 고정.")]
-        public bool scaleWithCameraDistance = true;
-        [Tooltip("이 거리(real m) 에서 fontSizeMeters 가 1× — 그보다 멀면 비례 증가, 가까우면 1× 유지.")]
-        public float referenceDistanceMeters = 50f;
-        [Tooltip("최대 배율 — 너무 거대해지지 않게 클램프.")]
-        public float maxDistanceScale = 30f;
+        [Header("폰트 크기 안전 클램프 (real m)")]
+        [Tooltip("constant-screen 모드의 폰트 월드 단위 하한 — 너무 작아 사라지지 않게.")]
+        public float minWorldFontMeters = 0.2f;
+        [Tooltip("월드 단위 상한 — 너무 커지지 않게.")]
+        public float maxWorldFontMeters = 500f;
 
         class Tag
         {
@@ -83,8 +85,9 @@ namespace DroneSim.C2
                 else _scale = 1f;
             }
             float offset = heightOffsetMeters * _scale;
-            float baseFontUnits = fontSizeMeters * _scale;
             Camera cam = Camera.main;
+            float minUnits = minWorldFontMeters * _scale;
+            float maxUnits = maxWorldFontMeters * _scale;
 
             var seen = new HashSet<string>();
             foreach (var agent in DroneRegistry.All)
@@ -106,15 +109,30 @@ namespace DroneSim.C2
                 Vector3 dronePos = agent.highFidelity.PositionUnity;
                 tag.root.transform.position = dronePos + Vector3.up * offset;
 
-                // 거리 비례 폰트.
-                float fontUnits = baseFontUnits;
-                if (scaleWithCameraDistance && cam != null && _scale > 1e-6f)
+                // 폰트 크기 — constant screen-space (게임 표준) 또는 월드 고정.
+                //   screen-space: 1 픽셀의 월드 높이 = 2·d·tan(fov/2) / pixelHeight,
+                //                 폰트 = pixelHeight 목표값 × 1 픽셀 월드 높이 → 화면 픽셀 크기 일정.
+                //   ortho 카메라: 1 픽셀 월드 높이 = 2·orthoSize / pixelHeight.
+                float fontUnits;
+                if (useScreenSpaceSize && cam != null)
                 {
-                    float distUnity = Vector3.Distance(dronePos, cam.transform.position);
-                    float distMeters = distUnity / _scale;
-                    float distScale = Mathf.Clamp(distMeters / Mathf.Max(referenceDistanceMeters, 0.01f),
-                                                  1f, maxDistanceScale);
-                    fontUnits *= distScale;
+                    float pxH = Mathf.Max(cam.pixelHeight, 1);
+                    float worldPerPixel;
+                    if (cam.orthographic)
+                    {
+                        worldPerPixel = (2f * cam.orthographicSize) / pxH;
+                    }
+                    else
+                    {
+                        float distUnity = Vector3.Distance(dronePos, cam.transform.position);
+                        float halfFovRad = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
+                        worldPerPixel = (2f * distUnity * Mathf.Tan(halfFovRad)) / pxH;
+                    }
+                    fontUnits = Mathf.Clamp(worldPerPixel * screenPixelHeight, minUnits, maxUnits);
+                }
+                else
+                {
+                    fontUnits = Mathf.Clamp(fontSizeMeters * _scale, minUnits, maxUnits);
                 }
                 tag.tmp.fontSize = fontUnits;
 
@@ -243,7 +261,7 @@ namespace DroneSim.C2
         }
 
         /// <summary>fontUnits + 문자 수에서 텍스트 박스를 분석적으로 추정.
-        /// fontUnits 가 거리 보정 결과(distScale × baseFontUnits) 이므로 박스 크기도 자동 동조.</summary>
+        /// fontUnits 가 constant-screen-space 결과이므로 박스도 같은 화면 픽셀 비율로 따라옴.</summary>
         const float CHAR_WIDTH_FACTOR = 0.55f;   // 평균 글리프 폭 ÷ fontSize. 한글 섞이면 더 크지만 bgScaleX 로 보정.
         const float LINE_HEIGHT_FACTOR = 1.20f;
         static void EstimateTextSize(string text, float fontUnits, out float w, out float h)
