@@ -126,6 +126,9 @@ namespace DroneSim.C2
                         tag.bg.gameObject.SetActive(true);
 
                         // 가로/세로 크기: 절대 모드(>0) 우선, 아니면 텍스트 크기 × scale.
+                        // 텍스트 크기는 GetPreferredValues 가 TMP 내부 캐시·타이밍 때문에 거리 보정된
+                        // 새 fontSize 를 즉시 못 따라잡는 일이 있어, fontUnits 와 글자 수에서 직접 산출.
+                        // → 거리에 따라 fontUnits 가 커지면 박스도 같이 커짐.
                         float w, h;
                         if (bgFixedSizeMeters.x > 0f && bgFixedSizeMeters.y > 0f)
                         {
@@ -134,10 +137,9 @@ namespace DroneSim.C2
                         }
                         else
                         {
-                            Vector2 pref = tag.tmp.GetPreferredValues(tag.tmp.text);
-                            if (pref.x < 1e-4f || pref.y < 1e-4f) pref = new Vector2(fontUnits * 6f, fontUnits * 2.4f);
-                            w = pref.x * bgScaleX;
-                            h = pref.y * bgScaleY;
+                            EstimateTextSize(tag.tmp.text, fontUnits, out float textW, out float textH);
+                            w = textW * bgScaleX;
+                            h = textH * bgScaleY;
                         }
 
                         // 위치: 텍스트 pivot=(0.5,0). 텍스트 중앙 = local(0, h_text/2).
@@ -238,6 +240,30 @@ namespace DroneSim.C2
             if (string.IsNullOrEmpty(id)) return "?";
             int idx = id.LastIndexOf('_');
             return idx >= 0 ? id.Substring(idx + 1) : id;
+        }
+
+        /// <summary>fontUnits + 문자 수에서 텍스트 박스를 분석적으로 추정.
+        /// fontUnits 가 거리 보정 결과(distScale × baseFontUnits) 이므로 박스 크기도 자동 동조.</summary>
+        const float CHAR_WIDTH_FACTOR = 0.55f;   // 평균 글리프 폭 ÷ fontSize. 한글 섞이면 더 크지만 bgScaleX 로 보정.
+        const float LINE_HEIGHT_FACTOR = 1.20f;
+        static void EstimateTextSize(string text, float fontUnits, out float w, out float h)
+        {
+            int maxChars = 1, lines = 1, curr = 0;
+            if (!string.IsNullOrEmpty(text))
+            {
+                foreach (char ch in text)
+                {
+                    if (ch == '\n')
+                    {
+                        if (curr > maxChars) maxChars = curr;
+                        curr = 0; lines++;
+                    }
+                    else curr++;
+                }
+                if (curr > maxChars) maxChars = curr;
+            }
+            w = fontUnits * maxChars * CHAR_WIDTH_FACTOR;
+            h = fontUnits * lines * LINE_HEIGHT_FACTOR;
         }
     }
 }
