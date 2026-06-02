@@ -68,6 +68,10 @@ UDP_CAM_WIDTH = 3840
 UDP_CAM_HEIGHT = 2160
 UDP_CAM_FOV_H_DEG = 84.0  # Samsung Galaxy Z Flip 7 후면 메인 카메라 추정값
 UDP_ORIENTATION = "landscape-left"
+# 실시간 동기화 모드 — True 면 추론 결과 검출 0개 프레임도 UDP 송신(detections=[])
+# 하여 Unity 가 캡처 타임라인의 공백을 그대로 본다. 기존 동작(검출 있을 때만 송신)
+# 으로 돌리려면 False.
+UDP_REALTIME_MODE = True
 
 # Sensor list indices (raw IP Webcam JSON order, 0-based after extract_values).
 QUAT_OFFSET = 16   # qx, qy, qz, qw occupy 16..19
@@ -385,13 +389,19 @@ def inference_worker():
 
                 n = len(detections.xyxy)
 
-                # UDP wire-up: detector 출력 → ray 변환 → Unity 송출
-                if (udp_sender is not None and n > 0 and quat is not None and gps is not None):
+                # UDP wire-up: detector 출력 → ray 변환 → Unity 송출.
+                # REALTIME_MODE: 검출 0개여도 camera pose 만 담은 빈 패킷을 보내
+                # Unity 가 캡처 타임라인의 공백을 그대로 보게 한다. 그렇지 않으면
+                # 기존처럼 검출 있을 때만 송신(안전·기존 호환).
+                should_send = (udp_sender is not None and quat is not None and gps is not None
+                               and (n > 0 or UDP_REALTIME_MODE))
+                if should_send:
                     if origin_gps is None:
                         origin_gps = gps
                         _save_live_meta(origin_gps)
                     try:
-                        msgs = _build_unity_detection_msgs(detections, K, R_pc, quat, gps, origin_gps)
+                        msgs = (_build_unity_detection_msgs(detections, K, R_pc, quat, gps, origin_gps)
+                                if n > 0 else [])
                         fwd, up = unity_camera_axes_from_quat(quat, R_pc)
                         udp_sender.send_frame(frame_id, sys_time, msgs,
                                               cam_forward=fwd.tolist(), cam_up=up.tolist())
@@ -400,6 +410,10 @@ def inference_worker():
 
                 if n > 0:
                     print(f"[추론] frame_{frame_id:06d}: {n} objects")
+                elif UDP_REALTIME_MODE and should_send:
+                    # 빈 프레임 송신은 너무 시끄럽지 않게 25프레임마다 한 줄 로그.
+                    if frame_id % 25 == 0:
+                        print(f"[추론] frame_{frame_id:06d}: 0 objects (realtime keepalive)")
             except Exception as e:
                 print(f"[추론 오류] frame_{frame_id}: {type(e).__name__} - {e}")
 
