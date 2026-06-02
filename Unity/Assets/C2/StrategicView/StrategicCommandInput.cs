@@ -44,6 +44,10 @@ namespace DroneSim.C2.StrategicView
         public bool enableNumericPresets = true;
         public LayerMask groundMaskForAGL = ~0;
 
+        [Header("전체 정지")]
+        [Tooltip("모든 드론의 웨이포인트 큐 비우고 현 자리 hover. RTS 의 Stop(S) 대응.")]
+        public Key stopAllKey = Key.Space;
+
         [Header("시각화")]
         public Color boxColor = new Color(0.4f, 1f, 0.4f, 0.15f);
         public Color pathDotColor = new Color(0.4f, 1f, 0.4f, 0.9f);
@@ -115,6 +119,18 @@ namespace DroneSim.C2.StrategicView
             bool rmb = mouse.rightButton.wasPressedThisFrame;
             bool shift = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
             bool ctrl = kb != null && (kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
+
+            // 전체 정지 키 — 모든 드론 큐 비우고 hover (선택 무관).
+            if (kb != null && stopAllKey != Key.None && kb[stopAllKey].wasPressedThisFrame)
+            {
+                int n = 0;
+                foreach (var a in DroneRegistry.All)
+                {
+                    if (a == null) continue;
+                    if (FlightCommands.StopAndHover(a.agentId)) n++;
+                }
+                Debug.Log($"[Cmd] STOP ALL → {n} drones hover");
+            }
 
             // 고도 키.
             if (kb != null)

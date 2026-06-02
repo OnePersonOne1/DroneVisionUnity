@@ -32,7 +32,8 @@ namespace DroneSim.C2
         public Key flipKey = Key.F7;
 
         [Header("상태")]
-        public bool isActive = false;
+        [Tooltip("Play 시작 시 켜져 있는지 여부 — 기본 ON(Display 4 자동 활성).")]
+        public bool isActive = true;
         public bool freeAttitude = false;
         [Tooltip("센서가 거꾸로 찍는 경우 자체 카메라 +Z 축 기준 180° 롤 보정.")]
         public bool flipRoll180 = true;
@@ -54,7 +55,8 @@ namespace DroneSim.C2
         public ProjectionReplay replay;
 
         [Header("화면 라벨")]
-        public bool showOnGuiBadge = true;
+        [Tooltip("Display 1 상단에 'SENSOR VIEW...' 박스를 띄울지. 기본 OFF — 사용자가 켜고 싶으면 토글.")]
+        public bool showOnGuiBadge = false;
 
         Camera _sensorCam;
         float _yaw, _pitch;
