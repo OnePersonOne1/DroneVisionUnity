@@ -91,8 +91,11 @@ public class ProjectionUdpReceiver : MonoBehaviour
     public float rayLineWidth = 0.5f;
     [Tooltip("그려지는 광선의 길이(Unity 단위). 맵 스케일에 따라 크게 잡아라. 짧으면 광선이 지면 도달 전에 끊김.")]
     public float rayDrawDistance = 100000f;
-    [Tooltip("0 = 영원, >0 = N초 뒤 자동 소멸.")]
+    [Tooltip("0 = 영원, >0 = N초 뒤 자동 소멸. syncRayLifetimeWithMarker 가 켜져 있으면 무시되고 markerLifetime 을 사용.")]
     public float debugVisualLifetime = 2f;
+    [Tooltip("켜면 광선/원점 구를 markerLifetime 과 동일한 수명으로 자동 소멸. " +
+             "끄면 debugVisualLifetime 사용. 기본 ON.")]
+    public bool syncRayLifetimeWithMarker = true;
 
     [Header("Debug Rays (Scene 뷰 전용, Debug.DrawRay)")]
     public bool drawDebugRays = false;
@@ -437,6 +440,9 @@ public class ProjectionUdpReceiver : MonoBehaviour
     /// 광선 + GPS 원점을 런타임 Game 뷰에 표시 (showDebugVisuals 토글).
     void SpawnDebugVisuals(Vector3 origin, Vector3 dir, Color color)
     {
+        // 광선/원점 수명: 옵션에 따라 marker 와 동기 또는 독립.
+        float life = syncRayLifetimeWithMarker ? markerLifetime : debugVisualLifetime;
+
         // GPS 원점 구
         var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         sphere.name = "DebugOrigin";
@@ -445,7 +451,7 @@ public class ProjectionUdpReceiver : MonoBehaviour
         var c = sphere.GetComponent<Collider>(); if (c != null) Destroy(c);
         var srend = sphere.GetComponent<Renderer>(); if (srend != null) TintRenderer(srend, color);
         sphere.transform.SetParent(GetDebugRoot(), true);
-        if (debugVisualLifetime > 0f) Destroy(sphere, debugVisualLifetime);
+        if (life > 0f) Destroy(sphere, life);
         debugObjects.Add(sphere);
 
         // 광선 LineRenderer
@@ -462,7 +468,7 @@ public class ProjectionUdpReceiver : MonoBehaviour
         lmat.color = color;
         lr.material = lmat;
         lineGo.transform.SetParent(GetDebugRoot(), true);
-        if (debugVisualLifetime > 0f) Destroy(lineGo, debugVisualLifetime);
+        if (life > 0f) Destroy(lineGo, life);
         debugObjects.Add(lineGo);
         debugSpawnCount++;
     }
