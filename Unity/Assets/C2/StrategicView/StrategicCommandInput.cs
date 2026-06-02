@@ -40,13 +40,17 @@ namespace DroneSim.C2.StrategicView
         public Key altitudeUpKey = Key.PageUp;
         public Key altitudeDownKey = Key.PageDown;
         public Key altitudeResetKey = Key.End;
-        [Tooltip("숫자 키 1~5: AGL 프리셋 (각각 10/30/50/100/200 m).")]
-        public bool enableNumericPresets = true;
+        [Tooltip("F1~F5: AGL 프리셋 (각각 10/30/50/100/200 m). 숫자 1~9 는 컨트롤 그룹용으로 비움.")]
+        public bool enableFunctionPresets = true;
         public LayerMask groundMaskForAGL = ~0;
 
         [Header("전체 정지")]
         [Tooltip("모든 드론의 웨이포인트 큐 비우고 현 자리 hover. RTS 의 Stop(S) 대응.")]
         public Key stopAllKey = Key.Space;
+
+        [Header("컨트롤 그룹 (RTS 부대지정)")]
+        [Tooltip("Ctrl+숫자(1~9) 로 현재 선택을 그룹에 저장. 숫자(1~9) 단독 누르면 그 그룹 호출.")]
+        public bool enableControlGroups = true;
 
         [Header("시각화")]
         public Color boxColor = new Color(0.4f, 1f, 0.4f, 0.15f);
@@ -57,6 +61,8 @@ namespace DroneSim.C2.StrategicView
         public MultiDisplayCoordinator multiDisplay;
 
         StrategicViewBootstrap _bootstrap;
+        // 컨트롤 그룹: 1~9 → 드론 ID 리스트. (0 은 미사용.)
+        readonly Dictionary<int, List<string>> _controlGroups = new Dictionary<int, List<string>>();
 
         enum DragMode { None, Box, Path }
         DragMode _drag = DragMode.None;
@@ -107,6 +113,43 @@ namespace DroneSim.C2.StrategicView
                        : $"[{string.Join(",", selectedDroneIds)}]"));
         }
 
+        /// <summary>Ctrl+digit = 현재 선택 스냅샷 저장, digit 단독 = 그 그룹 호출.
+        /// 빈 선택 상태에서 Ctrl+digit 누르면 등록된 모든 드론을 그 그룹으로.</summary>
+        void HandleControlGroupKey(Keyboard kb, bool ctrlHeld, Key digitKey, int group)
+        {
+            if (!kb[digitKey].wasPressedThisFrame) return;
+            if (ctrlHeld)
+            {
+                var snap = new List<string>();
+                if (selectedDroneIds.Count > 0)
+                {
+                    foreach (var id in selectedDroneIds) snap.Add(id);
+                }
+                else
+                {
+                    foreach (var a in DroneRegistry.All) if (a != null) snap.Add(a.agentId);
+                }
+                _controlGroups[group] = snap;
+                Debug.Log($"[Cmd] group {group} ← {snap.Count} drones");
+            }
+            else
+            {
+                if (_controlGroups.TryGetValue(group, out var saved))
+                {
+                    selectedDroneIds.Clear();
+                    foreach (var id in saved)
+                    {
+                        if (DroneRegistry.Get(id) != null) selectedDroneIds.Add(id);
+                    }
+                    Debug.Log($"[Cmd] recall group {group} → {selectedDroneIds.Count} drones");
+                }
+                else
+                {
+                    Debug.Log($"[Cmd] group {group} empty (Ctrl+{group} 으로 먼저 저장)");
+                }
+            }
+        }
+
         void Update()
         {
             var mouse = Mouse.current;
@@ -138,15 +181,29 @@ namespace DroneSim.C2.StrategicView
                 if (kb[altitudeUpKey].wasPressedThisFrame) commandAltitudeAGLMeters += altitudeStepMeters;
                 if (kb[altitudeDownKey].wasPressedThisFrame) commandAltitudeAGLMeters = Mathf.Max(0f, commandAltitudeAGLMeters - altitudeStepMeters);
                 if (kb[altitudeResetKey].wasPressedThisFrame) commandAltitudeAGLMeters = 0f;
-                if (enableNumericPresets)
+                if (enableFunctionPresets)
                 {
-                    if (kb.digit1Key.wasPressedThisFrame) commandAltitudeAGLMeters = 10f;
-                    if (kb.digit2Key.wasPressedThisFrame) commandAltitudeAGLMeters = 30f;
-                    if (kb.digit3Key.wasPressedThisFrame) commandAltitudeAGLMeters = 50f;
-                    if (kb.digit4Key.wasPressedThisFrame) commandAltitudeAGLMeters = 100f;
-                    if (kb.digit5Key.wasPressedThisFrame) commandAltitudeAGLMeters = 200f;
-                    if (kb.digit0Key.wasPressedThisFrame) commandAltitudeAGLMeters = 0f;
+                    // F1~F5 = AGL 프리셋. 숫자 1~9 는 컨트롤 그룹으로 비웠음.
+                    if (kb[Key.F1].wasPressedThisFrame) commandAltitudeAGLMeters = 10f;
+                    if (kb[Key.F2].wasPressedThisFrame) commandAltitudeAGLMeters = 30f;
+                    if (kb[Key.F3].wasPressedThisFrame) commandAltitudeAGLMeters = 50f;
+                    if (kb[Key.F4].wasPressedThisFrame) commandAltitudeAGLMeters = 100f;
+                    if (kb[Key.F5].wasPressedThisFrame) commandAltitudeAGLMeters = 200f;
                 }
+            }
+
+            // 컨트롤 그룹 (RTS 부대지정): Ctrl+숫자 = 저장, 숫자 단독 = 호출.
+            if (kb != null && enableControlGroups)
+            {
+                HandleControlGroupKey(kb, ctrl, Key.Digit1, 1);
+                HandleControlGroupKey(kb, ctrl, Key.Digit2, 2);
+                HandleControlGroupKey(kb, ctrl, Key.Digit3, 3);
+                HandleControlGroupKey(kb, ctrl, Key.Digit4, 4);
+                HandleControlGroupKey(kb, ctrl, Key.Digit5, 5);
+                HandleControlGroupKey(kb, ctrl, Key.Digit6, 6);
+                HandleControlGroupKey(kb, ctrl, Key.Digit7, 7);
+                HandleControlGroupKey(kb, ctrl, Key.Digit8, 8);
+                HandleControlGroupKey(kb, ctrl, Key.Digit9, 9);
             }
 
             if (rmb) { HandleRmb(screen, shift); return; }
