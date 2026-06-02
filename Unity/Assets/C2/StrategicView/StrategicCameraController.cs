@@ -31,6 +31,8 @@ namespace DroneSim.C2.StrategicView
         [Header("GPS 위치로 복귀")]
         [Tooltip("Strategic Camera 를 Cube(현재 GPS 시점) 위로 재중심.")]
         public Key recenterKey = Key.Home;
+        [Tooltip("보조 키 — Home 이 노트북 Fn 레이어에 있을 때 대비. Key.None 이면 비활성.")]
+        public Key recenterKey2 = Key.Backspace;
 
         StrategicViewBootstrap _bootstrap;
         Vector2 _lastMouseScreen;
@@ -49,21 +51,33 @@ namespace DroneSim.C2.StrategicView
 
         void Update()
         {
-            var cam = _bootstrap?.StrategicCamera;
-            if (cam == null) return;
-
             var kb = Keyboard.current;
             var mouse = Mouse.current;
 
+            // ── GPS 복귀 (Home/보조키) — cam null 가드보다 먼저 체크해서 부트스트랩 지연에도 무시되지 않게. ──
+            if (kb != null)
+            {
+                bool primary = recenterKey != Key.None && kb[recenterKey].wasPressedThisFrame;
+                bool secondary = recenterKey2 != Key.None && kb[recenterKey2].wasPressedThisFrame;
+                if (primary || secondary)
+                {
+                    if (_bootstrap != null)
+                    {
+                        _bootstrap.RecenterCamera();
+                        Debug.Log($"[StrategicCam] recenter → Cube 위치 (key={(primary ? recenterKey : recenterKey2)})");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[StrategicCam] recenter 무시 — _bootstrap null");
+                    }
+                }
+            }
+
+            var cam = _bootstrap?.StrategicCamera;
+            if (cam == null) return;
+
             // 카메라 팬/줌은 비-파괴적(시각 변화만) — overView 게이트 제거, 항상 허용.
             // Editor 단일 모니터에서 Display 3 탭 보면서 조작 가능. RMB SetWaypoint 는 별도 (StrategicCommandInput).
-
-            // ── GPS 복귀 (Home 키) ──
-            if (kb != null && kb[recenterKey].wasPressedThisFrame)
-            {
-                _bootstrap.RecenterCamera();
-                Debug.Log("[StrategicCam] recenter → Cube 위치");
-            }
 
             // ── 화살표 팬 (마우스 위치 무관, kb 항상 가능 — 다른 키 그룹과 안 겹침) ──
             if (kb != null)

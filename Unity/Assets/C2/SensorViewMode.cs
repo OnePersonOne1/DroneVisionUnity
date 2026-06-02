@@ -11,11 +11,12 @@ namespace DroneSim.C2
     /// 위치: UDP/Replay 의 cam_lat/cam_lng/cam_alt 환산 월드 좌표.
     /// 자세:
     ///   - FIXED : 센서 reported fwd/up → LookRotation. roll 180° 옵션으로 거꾸로 보정.
-    ///   - FREE  : 위치는 센서 고정, 자세는 RMB 드래그 마우스 룩.
+    ///   - FREE  : 위치는 센서 고정, 자세는 **LMB 드래그** 마우스 룩(다른 시점과 동일).
+    ///            roll 보정은 FREE 에서 적용하지 않음(자유 자세는 항상 upright).
     /// 키:
     ///   - U  : 모드 on/off (display 4 카메라 enabled 토글)
     ///   - F8 : 자세 FIXED ↔ FREE
-    ///   - F7 : roll 180° 뒤집기 토글 (카메라 거꾸로 찍힐 때)
+    ///   - F7 : roll 180° 뒤집기 토글 (FIXED 에서 카메라 거꾸로 찍힐 때)
     /// </summary>
     [DisallowMultipleComponent]
     public class SensorViewMode : MonoBehaviour
@@ -43,7 +44,7 @@ namespace DroneSim.C2
         public Color backgroundColor = new Color(0.05f, 0.07f, 0.10f, 1f);
         public LayerMask renderLayers = ~0;
 
-        [Header("Free 자세 마우스 룩")]
+        [Header("Free 자세 마우스 룩 (LMB 드래그)")]
         public float mouseSensitivity = 0.2f;
         public float minPitch = -85f;
         public float maxPitch = 85f;
@@ -114,17 +115,17 @@ namespace DroneSim.C2
 
             if (freeAttitude)
             {
+                // FREE: LMB 드래그 마우스 룩 (다른 시점과 동일). RMB 는 strategic 명령용으로 비워둠.
+                // FREE 는 항상 upright — flipRoll180 적용 안 함.
                 var mouse = Mouse.current;
-                if (mouse != null && mouse.rightButton.isPressed)
+                if (mouse != null && mouse.leftButton.isPressed)
                 {
                     Vector2 d = mouse.delta.ReadValue();
                     _yaw += d.x * mouseSensitivity;
                     _pitch -= d.y * mouseSensitivity;
                     _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
                 }
-                Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
-                if (flipRoll180) rot = rot * Quaternion.Euler(0f, 0f, 180f);
-                _sensorCam.transform.rotation = rot;
+                _sensorCam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
             }
             else if (have)
             {
@@ -170,10 +171,13 @@ namespace DroneSim.C2
 
         void ResetFreeAttitudeFromCurrent()
         {
+            // FIXED 의 roll-180 flip 에 의해 eulerAngles 가 뒤집힌 값을 갖기 때문에
+            // forward 벡터에서 직접 yaw/pitch 를 추출 → FREE 는 항상 upright 로 시작.
             if (_sensorCam == null) return;
-            var e = _sensorCam.transform.rotation.eulerAngles;
-            _yaw = e.y;
-            _pitch = (e.x > 180f) ? e.x - 360f : e.x;
+            Vector3 f = _sensorCam.transform.forward;
+            _yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+            _pitch = -Mathf.Asin(Mathf.Clamp(f.y, -1f, 1f)) * Mathf.Rad2Deg;
+            _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
         }
 
         void OnGUI()
