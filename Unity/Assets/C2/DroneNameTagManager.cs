@@ -8,14 +8,17 @@ namespace DroneSim.C2
     /// <summary>
     /// 등록된 모든 드론 머리 위에 월드 공간 TMP 라벨을 띄운다 (마인크래프트 nametag 스타일).
     ///   - 항상 카메라 쪽 향함(billboard, 수직 유지).
-    ///   - 라벨: "{번호}\nalt: {Z:F1} m".
+    ///   - 라벨: "{번호}\nAGL: {m} m".
+    ///   - 텍스트 뒤 반투명 검은 박스로 가독성 보강.
+    ///   - TMP rectTransform pivot = (0.5, 0) (bottom-center) → root.position 이 라벨 바닥
+    ///     기준점이 되어 heightOffsetMeters 가 "드론 머리 위 N m" 로 명확히 동작.
     ///   - 모든 디스플레이(1/2/3) 에서 동일하게 렌더 (월드 메시).
     /// </summary>
     [DisallowMultipleComponent]
     public class DroneNameTagManager : MonoBehaviour
     {
         [Header("위치")]
-        [Tooltip("드론 머리 위 띄울 높이 (real m, unityUnitsPerMeter 자동 곱).")]
+        [Tooltip("드론 머리 위 띄울 높이 (real m, unityUnitsPerMeter 자동 곱). 라벨 '바닥' 이 이 높이.")]
         public float heightOffsetMeters = 3f;
 
         [Header("폰트")]
@@ -23,7 +26,13 @@ namespace DroneSim.C2
                  "거리 비례 확대 ON 이면 멀어질수록 비례 증가.")]
         public float fontSizeMeters = 3f;
         public Color textColor = Color.white;
+
+        [Header("배경 박스")]
+        [Tooltip("텍스트 뒤 반투명 박스 표시(가독성). 끄면 박스 없음.")]
+        public bool showBackground = true;
         public Color bgColor = new Color(0f, 0f, 0f, 0.65f);
+        [Tooltip("박스가 텍스트 영역을 둘러싸는 여유(배수). 1.0 = 딱 맞춤, 1.2 = 20% 패딩.")]
+        public float bgPadding = 1.20f;
 
         [Header("Billboard")]
         [Tooltip("매 프레임 Camera.main 쪽으로 회전(수평 axis 유지).")]
@@ -41,11 +50,21 @@ namespace DroneSim.C2
         {
             public GameObject root;
             public TextMeshPro tmp;
+            public Transform bg;          // 텍스트 뒤 quad
+            public MeshRenderer bgRend;
+            public Material bgMat;
         }
         readonly Dictionary<string, Tag> _tags = new Dictionary<string, Tag>();
         readonly List<string> _toRemove = new List<string>();
         float _scale = 1f;
         bool _scaleResolved;
+        Shader _bgShader;
+
+        void Awake()
+        {
+            _bgShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (_bgShader == null) _bgShader = Shader.Find("Sprites/Default");
+        }
 
         void LateUpdate()
         {
@@ -69,17 +88,17 @@ namespace DroneSim.C2
                     tag = BuildTag(agent);
                     _tags[agent.agentId] = tag;
                 }
-                // 텍스트 갱신 — AGL(지상고도) 표시.
+                // 텍스트 갱신 — AGL(지상고도).
                 float agl;
                 GroundAgl.TryGetAgl(agent.highFidelity.PositionUnity, agent.highFidelity.UnityUnitsPerMeter, ~0, out agl);
                 tag.tmp.text = $"{DroneNumber(agent.agentId)}\nAGL: {agl:F1} m";
                 tag.tmp.color = textColor;
 
-                // 위치: 드론 머리 위.
+                // 위치: 드론 머리 위 (root = 라벨 바닥 기준점).
                 Vector3 dronePos = agent.highFidelity.PositionUnity;
                 tag.root.transform.position = dronePos + Vector3.up * offset;
 
-                // 거리 비례 폰트 — 가까울 땐 1×, 멀어질수록 비례 확대 (max 클램프).
+                // 거리 비례 폰트.
                 float fontUnits = baseFontUnits;
                 if (scaleWithCameraDistance && cam != null && _scale > 1e-6f)
                 {
@@ -90,6 +109,31 @@ namespace DroneSim.C2
                     fontUnits *= distScale;
                 }
                 tag.tmp.fontSize = fontUnits;
+
+                // 배경 박스 크기 — TMP preferred values 기반.
+                if (tag.bg != null)
+                {
+                    if (showBackground)
+                    {
+                        tag.bg.gameObject.SetActive(true);
+                        // 즉시 사이즈 산출 — GetPreferredValues 는 렌더 없이도 동작.
+                        Vector2 pref = tag.tmp.GetPreferredValues(tag.tmp.text);
+                        if (pref.x < 1e-4f || pref.y < 1e-4f) pref = new Vector2(fontUnits * 6f, fontUnits * 2.4f);
+                        float padX = pref.x * (bgPadding - 1f) * 0.5f + fontUnits * 0.15f;
+                        float padY = pref.y * (bgPadding - 1f) * 0.5f + fontUnits * 0.10f;
+                        float w = pref.x + padX * 2f;
+                        float h = pref.y + padY * 2f;
+                        // TMP pivot = (0.5, 0) → 텍스트는 root local +Y 방향으로 자라남.
+                        // bg center = (0, h/2), local +Z 살짝(=billboard 기준 카메라 뒤쪽) 밀어 z-fight 방지.
+                        tag.bg.localPosition = new Vector3(0f, h * 0.5f, 0.02f);
+                        tag.bg.localScale = new Vector3(w, h, 1f);
+                        if (tag.bgMat != null) tag.bgMat.color = bgColor;
+                    }
+                    else
+                    {
+                        tag.bg.gameObject.SetActive(false);
+                    }
+                }
 
                 // Billboard: Camera.main 쪽 수평 회전 (Y 축은 위 유지).
                 if (billboard && cam != null)
@@ -115,6 +159,19 @@ namespace DroneSim.C2
         {
             var root = new GameObject($"NameTag_{agent.agentId}");
             root.transform.SetParent(transform, true);
+
+            // 배경 quad — 텍스트 뒤에 위치.
+            var bgGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            bgGo.name = "BG";
+            bgGo.transform.SetParent(root.transform, false);
+            var col = bgGo.GetComponent<Collider>(); if (col != null) Destroy(col);
+            var bgRend = bgGo.GetComponent<MeshRenderer>();
+            var bgMat = MakeBgMaterial();
+            bgRend.sharedMaterial = bgMat;
+            bgRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            bgRend.receiveShadows = false;
+
+            // 텍스트.
             var tmpGo = new GameObject("Text");
             tmpGo.transform.SetParent(root.transform, false);
             var tmp = tmpGo.AddComponent<TextMeshPro>();
@@ -125,11 +182,34 @@ namespace DroneSim.C2
             tmp.enableWordWrapping = false;
             var f = KoreanFont.Get();
             if (f != null) tmp.font = f;
-            // TMP 가 자식의 RectTransform 을 자동으로 만든다. root 는 일반 Transform.
+            // pivot = (0.5, 0) → root.position 이 텍스트 바닥 중앙.
             var trt = tmp.rectTransform;
+            trt.pivot = new Vector2(0.5f, 0f);
             trt.sizeDelta = new Vector2(10f, 4f);
             trt.anchoredPosition = Vector2.zero;
-            return new Tag { root = root, tmp = tmp };
+            // TMP 가 +Z 쪽으로 살짝 있어 bg(z=0.02) 보다 카메라에 가깝게.
+            tmpGo.transform.localPosition = new Vector3(0f, 0f, 0f);
+
+            return new Tag { root = root, tmp = tmp, bg = bgGo.transform, bgRend = bgRend, bgMat = bgMat };
+        }
+
+        Material MakeBgMaterial()
+        {
+            var mat = new Material(_bgShader);
+            mat.color = bgColor;
+            if (mat.HasProperty("_Surface"))
+            {
+                mat.SetFloat("_Surface", 1f);
+                mat.SetFloat("_Blend", 0f);
+                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                mat.DisableKeyword("_SURFACE_TYPE_OPAQUE");
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_ZWrite", 0);
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            return mat;
         }
 
         static string DroneNumber(string id)
