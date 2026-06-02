@@ -162,6 +162,10 @@ namespace DroneSim.C2.StrategicView
             bool rmb = mouse.rightButton.wasPressedThisFrame;
             bool shift = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
             bool ctrl = kb != null && (kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
+            // Alt 도 컨트롤 그룹 modifier 로 인정 — Editor 에서 Ctrl+1~9 가
+            // Scene/Game/Inspector 등 윈도우 전환에 잡혀서 못 쓸 때의 우회.
+            bool alt = kb != null && (kb.leftAltKey.isPressed || kb.rightAltKey.isPressed);
+            bool groupAssign = ctrl || alt;
 
             // 전체 정지 키 — 모든 드론 큐 비우고 hover (선택 무관).
             if (kb != null && stopAllKey != Key.None && kb[stopAllKey].wasPressedThisFrame)
@@ -192,18 +196,18 @@ namespace DroneSim.C2.StrategicView
                 }
             }
 
-            // 컨트롤 그룹 (RTS 부대지정): Ctrl+숫자 = 저장, 숫자 단독 = 호출.
+            // 컨트롤 그룹 (RTS 부대지정): Ctrl+숫자 또는 Alt+숫자 = 저장, 숫자 단독 = 호출.
             if (kb != null && enableControlGroups)
             {
-                HandleControlGroupKey(kb, ctrl, Key.Digit1, 1);
-                HandleControlGroupKey(kb, ctrl, Key.Digit2, 2);
-                HandleControlGroupKey(kb, ctrl, Key.Digit3, 3);
-                HandleControlGroupKey(kb, ctrl, Key.Digit4, 4);
-                HandleControlGroupKey(kb, ctrl, Key.Digit5, 5);
-                HandleControlGroupKey(kb, ctrl, Key.Digit6, 6);
-                HandleControlGroupKey(kb, ctrl, Key.Digit7, 7);
-                HandleControlGroupKey(kb, ctrl, Key.Digit8, 8);
-                HandleControlGroupKey(kb, ctrl, Key.Digit9, 9);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit1, 1);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit2, 2);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit3, 3);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit4, 4);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit5, 5);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit6, 6);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit7, 7);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit8, 8);
+                HandleControlGroupKey(kb, groupAssign, Key.Digit9, 9);
             }
 
             if (rmb) { HandleRmb(screen, shift); return; }
