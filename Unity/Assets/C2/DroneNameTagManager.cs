@@ -31,8 +31,16 @@ namespace DroneSim.C2
         [Tooltip("텍스트 뒤 반투명 박스 표시(가독성). 끄면 박스 없음.")]
         public bool showBackground = true;
         public Color bgColor = new Color(0f, 0f, 0f, 0.65f);
-        [Tooltip("박스가 텍스트 영역을 둘러싸는 여유(배수). 1.0 = 딱 맞춤, 1.2 = 20% 패딩.")]
-        public float bgPadding = 1.20f;
+        [Tooltip("박스 가로 배율(텍스트 폭 대비). 1.0=텍스트 폭과 동일, 1.3=30% 더 넓게.")]
+        public float bgScaleX = 1.20f;
+        [Tooltip("박스 세로 배율(텍스트 높이 대비).")]
+        public float bgScaleY = 1.20f;
+        [Tooltip("박스 추가 위치 보정 (real m). x=오른쪽, y=위쪽. " +
+                 "텍스트 중앙(텍스트 바닥 + 높이/2) 기준 local offset.")]
+        public Vector2 bgOffsetMeters = Vector2.zero;
+        [Tooltip("절대 크기 모드 — 0보다 크면 텍스트 크기 무시하고 이 값(real m) 으로 고정. " +
+                 "예: (8, 4) 라면 가로 8m, 세로 4m. 0 이면 텍스트 자동 맞춤(bgScaleX/Y 사용).")]
+        public Vector2 bgFixedSizeMeters = Vector2.zero;
 
         [Header("Billboard")]
         [Tooltip("매 프레임 Camera.main 쪽으로 회전(수평 axis 유지).")]
@@ -110,22 +118,35 @@ namespace DroneSim.C2
                 }
                 tag.tmp.fontSize = fontUnits;
 
-                // 배경 박스 크기 — TMP preferred values 기반.
+                // 배경 박스 위치/크기 — 인스펙터 노브로 조절.
                 if (tag.bg != null)
                 {
                     if (showBackground)
                     {
                         tag.bg.gameObject.SetActive(true);
-                        // 즉시 사이즈 산출 — GetPreferredValues 는 렌더 없이도 동작.
-                        Vector2 pref = tag.tmp.GetPreferredValues(tag.tmp.text);
-                        if (pref.x < 1e-4f || pref.y < 1e-4f) pref = new Vector2(fontUnits * 6f, fontUnits * 2.4f);
-                        float padX = pref.x * (bgPadding - 1f) * 0.5f + fontUnits * 0.15f;
-                        float padY = pref.y * (bgPadding - 1f) * 0.5f + fontUnits * 0.10f;
-                        float w = pref.x + padX * 2f;
-                        float h = pref.y + padY * 2f;
-                        // TMP pivot = (0.5, 0) → 텍스트는 root local +Y 방향으로 자라남.
-                        // bg center = (0, h/2), local +Z 살짝(=billboard 기준 카메라 뒤쪽) 밀어 z-fight 방지.
-                        tag.bg.localPosition = new Vector3(0f, h * 0.5f, 0.02f);
+
+                        // 가로/세로 크기: 절대 모드(>0) 우선, 아니면 텍스트 크기 × scale.
+                        float w, h;
+                        if (bgFixedSizeMeters.x > 0f && bgFixedSizeMeters.y > 0f)
+                        {
+                            w = bgFixedSizeMeters.x * _scale;
+                            h = bgFixedSizeMeters.y * _scale;
+                        }
+                        else
+                        {
+                            Vector2 pref = tag.tmp.GetPreferredValues(tag.tmp.text);
+                            if (pref.x < 1e-4f || pref.y < 1e-4f) pref = new Vector2(fontUnits * 6f, fontUnits * 2.4f);
+                            w = pref.x * bgScaleX;
+                            h = pref.y * bgScaleY;
+                        }
+
+                        // 위치: 텍스트 pivot=(0.5,0). 텍스트 중앙 = local(0, h_text/2).
+                        // 박스 중심을 동일 지점에 두고 사용자 offset 추가.
+                        // 텍스트 높이 추정 — 박스 높이 h 와 거의 같다고 보고 그것으로 정렬.
+                        float baseY = h * 0.5f;
+                        float offX = bgOffsetMeters.x * _scale;
+                        float offY = bgOffsetMeters.y * _scale;
+                        tag.bg.localPosition = new Vector3(offX, baseY + offY, 0.02f);
                         tag.bg.localScale = new Vector3(w, h, 1f);
                         if (tag.bgMat != null) tag.bgMat.color = bgColor;
                     }
