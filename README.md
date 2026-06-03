@@ -279,6 +279,13 @@ Unity/Assets/Tests/EditMode/         (NUnit)
 - 드론 시뮬레이션의 PID 게인은 기본값에서 오버슈트가 관찰될 수 있다. `PositionController` 의 `Kd` 를 상황에 맞게 조정한다.
 - 고도·스케일 관련 마커 위치가 어긋나면 `CubeGPSDisplay.altitudeReferenceBuilding` 슬롯에 메시 + Renderer 가 부착된 기준 건물이 지정돼 있는지 먼저 확인한다.
 
+## 향후 목표
+
+- **PX4 SITL 다중 드론**: 현재 1대 전제 (`MavlinkFlightModel` 이 udp:9871/9872 단독 bind, `px4_bridge.py` 가 단일 MAVSDK 연결). 다중 활성화하려면 (a) PX4 SITL 인스턴스를 별 포트(14541, 14542, …) 로 분리, (b) `px4_bridge.py` 를 N MAVSDK 다중화하고 텔레메트리에 `system_id` 부착, (c) Unity 측 9871 single-socket 을 sysid → DroneAgent 라우터로 재설계 필요. 시뮬 드론 (`drone_sim_obj_N`) 은 이미 다중 지원이라 시뮬 N + SITL 1 운영으로 우회 가능 — 추가 작업은 후속 task.
+- **인천 anchor / horizontalScaleFactor stale 문서 정정**: 본 README/CLAUDE.md 의 일부 절은 옛 anchor(`37.384312`, scale `1`) 를 기준으로 작성됐으나, 실제 씬의 `CubeGPSDisplay` 는 `lat 37.384049721493724 / lng 126.65615666326806 / horizontalScaleFactor 9.715` 로 정정됨 (`worlds/incheon.sdf` 도 그에 맞춰져 있음). 문서 정합 정리는 후속.
+- **음성·LLM 명령 입력**: 현재 LLM 은 `/assess` 표시 전용. 음성/자연어로 SetWaypoint 같은 명령 트리거는 미지원 — 안전 우선 (LLM 출력이 제어 경로에 직결되지 않음).
+- **빌드 자동화**: 현재 검증은 Editor Play 또는 `SitlPlayCheck.Run` 의 xvfb 헤드리스. CI 통합 (GitHub Actions 등) 미설정.
+
 ## 라이선스
 
 (추가 예정)
