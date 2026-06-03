@@ -18,6 +18,19 @@ namespace DroneSim.Flight.UnityAdapter
         N.Vector3 PositionEnu { get; }
         N.Vector3 VelocityEnu { get; }
 
+        // ── 좌표 변환 (어댑터 경계) — C2 UI 가 화면 클릭점 ↔ ENU 변환에 쓴다 ──────
+        // HF/Arcade 는 spawn 원점 기준, Mavlink(SITL) 은 GPS 홈 기준으로 구현.
+        // UI 가 agent.Active(IFlightModel) 만 보고 동작하도록 인터페이스로 승격.
+
+        /// <summary>1 real m → Unity 유닛 배율.</summary>
+        float UnityUnitsPerMeter { get; }
+
+        /// <summary>임의의 Unity world 위치 → 이 드론 기준 ENU(m).</summary>
+        N.Vector3 UnityWorldToEnu(in Vector3 worldUnity);
+
+        /// <summary>이 드론 기준 ENU(m) → Unity world 위치 (시각화용).</summary>
+        Vector3 EnuToUnityWorld(in N.Vector3 posEnu);
+
         /// <summary>Phase 2 검증용 직접 입력 — Phase 3 부터 제어기가 호출, 외부 호출 비권장.</summary>
         void SetDirectControl(float thrustNewton, in N.Vector3 torqueBody);
 

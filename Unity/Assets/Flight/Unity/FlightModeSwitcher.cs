@@ -17,12 +17,21 @@ namespace DroneSim.Flight.UnityAdapter
             if (kb == null || !kb[toggleKey].wasPressedThisFrame) return;
             int n = DroneRegistry.Count;
             if (n == 0) return;
-            // 첫 번째 드론의 모드를 뒤집고 그것을 따라가도록 일괄 적용.
-            var target = DroneRegistry.All[0].CurrentMode == DroneAgent.Mode.HighFidelity
+            // External(SITL) 은 토글 대상이 아니다 — 기준/적용 모두 시뮬 드론만.
+            DroneAgent pivot = null;
+            foreach (var a in DroneRegistry.All)
+                if (a != null && a.CurrentMode != DroneAgent.Mode.External) { pivot = a; break; }
+            if (pivot == null) return;
+            var target = pivot.CurrentMode == DroneAgent.Mode.HighFidelity
                 ? DroneAgent.Mode.Arcade
                 : DroneAgent.Mode.HighFidelity;
-            foreach (var a in DroneRegistry.All) a.SetMode(target);
-            Debug.Log($"[FlightModeSwitcher] 전체 {n}대 → {target}");
+            int applied = 0;
+            foreach (var a in DroneRegistry.All)
+            {
+                if (a == null || a.CurrentMode == DroneAgent.Mode.External) continue;
+                a.SetMode(target); applied++;
+            }
+            Debug.Log($"[FlightModeSwitcher] 시뮬 {applied}대 → {target} (SITL 제외)");
         }
     }
 }

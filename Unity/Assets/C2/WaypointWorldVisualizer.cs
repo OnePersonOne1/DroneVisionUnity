@@ -84,7 +84,7 @@ namespace DroneSim.C2
             var seen = new HashSet<string>();
             foreach (var agent in DroneRegistry.All)
             {
-                if (agent == null || agent.highFidelity == null) continue;
+                if (agent == null || agent.Active == null) continue;
                 seen.Add(agent.agentId);
 
                 if (!_vis.TryGetValue(agent.agentId, out var v))
@@ -96,9 +96,9 @@ namespace DroneSim.C2
                 // 웨이포인트 좌표 수집(월드).
                 var wps = new List<Vector3>();
                 if (agent.Waypoints.Current.HasValue)
-                    wps.Add(agent.highFidelity.EnuToUnityWorld(agent.Waypoints.Current.Value));
+                    wps.Add(agent.Active.EnuToUnityWorld(agent.Waypoints.Current.Value));
                 foreach (var w in agent.Waypoints.Upcoming)
-                    wps.Add(agent.highFidelity.EnuToUnityWorld(w));
+                    wps.Add(agent.Active.EnuToUnityWorld(w));
 
                 bool isSel = _selection != null && _selection.IsSelected(agent.agentId);
                 Color c = isSel ? selectedColor : defaultColor;
@@ -156,7 +156,7 @@ namespace DroneSim.C2
                     {
                         v.line.gameObject.SetActive(true);
                         v.line.positionCount = wps.Count + 1;
-                        v.line.SetPosition(0, agent.highFidelity.PositionUnity);
+                        v.line.SetPosition(0, agent.Active.PositionUnity);
                         for (int i = 0; i < wps.Count; i++) v.line.SetPosition(i + 1, wps[i]);
                         v.line.startWidth = v.line.endWidth = lineW;
                         v.line.startColor = v.line.endColor = lineC;

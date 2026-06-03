@@ -539,11 +539,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8fdb71d2353210a9a820a846dbefc8b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DroneSim.C2.MinimapCommandInput
-  targetDroneId: drone_sim_obj_0
-  targetMarkerColor: {r: 0.4, g: 1, b: 0.4, a: 0.95}
-  targetMarkerRadius: 7
-  queueDotColor: {r: 0.4, g: 1, b: 0.4, a: 0.55}
-  queueDotRadius: 4
+  selectionSrc: {fileID: 0}
+  droneColor: {r: 0.3, g: 0.9, b: 1, a: 1}
+  selectedColor: {r: 1, g: 0.9, b: 0.2, a: 1}
+  targetColor: {r: 0.4, g: 1, b: 0.4, a: 0.95}
+  queueColor: {r: 0.4, g: 1, b: 0.4, a: 0.55}
+  droneRadius: 6
+  targetRadius: 7
+  queueRadius: 4
+  selectHitRadiusPixels: 14
+  dragThresholdPixels: 6
+  pathSampleIntervalSec: 0.06
+  boxColor: {r: 0.4, g: 1, b: 0.4, a: 0.15}
+  pathDotColor: {r: 0.4, g: 1, b: 0.4, a: 0.9}
+  pathDotRadius: 4
 --- !u!114 &173745902
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1430,6 +1439,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   stopAllKey: 1
+  clearSelectionKey: 60
   enableControlGroups: 1
   boxColor: {r: 0.4, g: 1, b: 0.4, a: 0.15}
   pathDotColor: {r: 0.4, g: 1, b: 0.4, a: 0.9}
@@ -1735,6 +1745,76 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -27409.15, y: 20564.299, z: -16104.928}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1176268887
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1176268890}
+  - component: {fileID: 1176268889}
+  - component: {fileID: 1176268888}
+  m_Layer: 0
+  m_Name: SITL Manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1176268888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1176268887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 883f0912d01fefe2bbd015baef21116a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DroneSim.SITL.SitlControlInput
+  armKey: 35
+  takeoffKey: 25
+  landKey: 26
+  rtlKey: 21
+  takeoffAltMeters: 5
+  selectionSrc: {fileID: 0}
+--- !u!114 &1176268889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1176268887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 709bbb004865419d882ad0af559d5a4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DroneSim.SITL.SitlDroneSpawner
+  telemetryPort: 9871
+  bridgeHost: 127.0.0.1
+  commandPort: 9872
+  spawnOnStart: 1
+  spawnKey: 102
+  visualScale: 10
+  sitlColor: {r: 1, g: 0.55, b: 0.1, a: 1}
+--- !u!4 &1176268890
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1176268887}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2094,6 +2174,17 @@ MonoBehaviour:
   cylinderRadiusMeters: 1.5
   cylinderHeightUnity: 1000000
   cylinderAlpha: 0.3
+  showGroundDiscs: 1
+  discRadiusMeters: 6
+  discThicknessUnity: 0.5
+  discAlpha: 0.55
+  discLiftMeters: 0.2
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  groundRayDistanceUnity: 1000000
+  discDefaultColor: {r: 1, g: 0.4, b: 0.2, a: 1}
+  discSelectedColor: {r: 1, g: 0.85, b: 0.1, a: 1}
   showPathLines: 1
   lineThicknessMeters: 0.6
   lineAlpha: 0.55
@@ -2230,6 +2321,10 @@ MonoBehaviour:
   autoMode: 0
   dwellSeconds: 1.5
   autoMinMoveMeters: 5
+  sensorProbeKey: 10
+  sensorProbeCameraOverride: {fileID: 0}
+  sensorDisplayIndex: 3
+  fpProbeCameraOverride: {fileID: 0}
   infoText: {fileID: 0}
   showHitHighlight: 1
   highlightKey: 22
@@ -2502,12 +2597,19 @@ MonoBehaviour:
   service: {fileID: 0}
   cardSize: {x: 560, y: 116}
   cardGap: 8
+  verticalPadding: 18
+  topLeftMargin: {x: 20, y: 20}
   bottomMargin: 120
   titleFontSize: 26
   bodyFontSize: 17
   cardBackColor: {r: 0, g: 0, b: 0, a: 0.62}
   koreanFont: {fileID: 0}
   loadingDelay: 0.25
+  buttonSize: {x: 26, y: 26}
+  pinOffColor: {r: 1, g: 1, b: 1, a: 0.55}
+  pinOnColor: {r: 1, g: 0.82, b: 0.25, a: 1}
+  deleteColor: {r: 1, g: 0.55, b: 0.55, a: 1}
+  buttonBgColor: {r: 1, g: 1, b: 1, a: 0.08}
 --- !u!114 &1949326089
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2740,3 +2842,4 @@ SceneRoots:
   - {fileID: 1988874443}
   - {fileID: 1672263898}
   - {fileID: 173745903}
+  - {fileID: 1176268890}

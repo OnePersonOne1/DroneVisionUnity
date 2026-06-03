@@ -296,7 +296,7 @@ namespace DroneSim.C2.StrategicView
             var seen = new HashSet<string>();
             foreach (var agent in DroneRegistry.All)
             {
-                if (agent == null || agent.highFidelity == null) continue;
+                if (agent == null || agent.Active == null) continue;
                 seen.Add(agent.agentId);
                 bool isSel = _input != null && _input.IsSelected(agent.agentId);
                 if (!_droneDots.TryGetValue(agent.agentId, out var m))
@@ -307,10 +307,10 @@ namespace DroneSim.C2.StrategicView
                 }
                 m.shape.color = isSel ? selectedColor : droneColor;
                 float aglM = 0f;
-                GroundAgl.TryGetAgl(agent.highFidelity.PositionUnity, agent.highFidelity.UnityUnitsPerMeter, ~0, out aglM);
+                GroundAgl.TryGetAgl(agent.Active.PositionUnity, agent.Active.UnityUnitsPerMeter, ~0, out aglM);
                 string newText = $"{DroneNumber(agent.agentId)}\nAGL: {aglM:F1} m";
                 if (m.label.text != newText) { m.label.text = newText; ResizeLabelBg(m, newText); }
-                PlaceMarker(m, agent.highFidelity.PositionUnity, cam);
+                PlaceMarker(m, agent.Active.PositionUnity, cam);
             }
             foreach (var kv in _droneDots) if (!seen.Contains(kv.Key)) kv.Value.shape.gameObject.SetActive(false);
 
@@ -323,7 +323,7 @@ namespace DroneSim.C2.StrategicView
         {
             int totalDrones = 0;
             foreach (var a in DroneRegistry.All)
-                if (a != null && a.highFidelity != null) totalDrones++;
+                if (a != null && a.Active != null) totalDrones++;
 
             // (bin) → (worldPos, droneNumbers).
             var targetGroups = new Dictionary<Vector2Int, (Vector3 pos, List<string> ids)>();
@@ -331,16 +331,16 @@ namespace DroneSim.C2.StrategicView
 
             foreach (var agent in DroneRegistry.All)
             {
-                if (agent == null || agent.highFidelity == null) continue;
+                if (agent == null || agent.Active == null) continue;
                 string num = DroneNumber(agent.agentId);
                 if (agent.Waypoints.Current.HasValue)
                 {
-                    Vector3 wp = agent.highFidelity.EnuToUnityWorld(agent.Waypoints.Current.Value);
+                    Vector3 wp = agent.Active.EnuToUnityWorld(agent.Waypoints.Current.Value);
                     AddToGroup(targetGroups, wp, cam, num);
                 }
                 foreach (var w in agent.Waypoints.Upcoming)
                 {
-                    Vector3 wp = agent.highFidelity.EnuToUnityWorld(w);
+                    Vector3 wp = agent.Active.EnuToUnityWorld(w);
                     AddToGroup(queueGroups, wp, cam, num);
                 }
             }
@@ -532,21 +532,21 @@ namespace DroneSim.C2.StrategicView
             var seen = new HashSet<string>();
             foreach (var agent in DroneRegistry.All)
             {
-                if (agent == null || agent.highFidelity == null) continue;
+                if (agent == null || agent.Active == null) continue;
                 seen.Add(agent.agentId);
                 _polyBuf.Clear();
 
-                Vector3 dronSp = cam.WorldToScreenPoint(agent.highFidelity.PositionUnity);
+                Vector3 dronSp = cam.WorldToScreenPoint(agent.Active.PositionUnity);
                 if (dronSp.z > 0f) _polyBuf.Add(new Vector2(dronSp.x, dronSp.y));
                 if (agent.Waypoints.Current.HasValue)
                 {
-                    Vector3 wp = agent.highFidelity.EnuToUnityWorld(agent.Waypoints.Current.Value);
+                    Vector3 wp = agent.Active.EnuToUnityWorld(agent.Waypoints.Current.Value);
                     Vector3 sp = cam.WorldToScreenPoint(wp);
                     if (sp.z > 0f) _polyBuf.Add(new Vector2(sp.x, sp.y));
                 }
                 foreach (var w in agent.Waypoints.Upcoming)
                 {
-                    Vector3 wp = agent.highFidelity.EnuToUnityWorld(w);
+                    Vector3 wp = agent.Active.EnuToUnityWorld(w);
                     Vector3 sp = cam.WorldToScreenPoint(wp);
                     if (sp.z > 0f) _polyBuf.Add(new Vector2(sp.x, sp.y));
                 }
@@ -667,9 +667,9 @@ namespace DroneSim.C2.StrategicView
             if (show == null && DroneRegistry.Count > 0) show = DroneRegistry.All[0];
 
             string status;
-            if (show != null && show.highFidelity != null)
+            if (show != null && show.Active != null)
             {
-                var hf = show.highFidelity;
+                var hf = show.Active;
                 var p = hf.PositionEnu;
                 var v = hf.VelocityEnu;
                 int pending = show.Waypoints.Pending;

@@ -324,8 +324,8 @@ namespace DroneSim.C2.StrategicView
             int sent = 0;
             foreach (var agent in EffectiveAgents())
             {
-                if (agent.highFidelity == null) continue;
-                var hf = agent.highFidelity;
+                var hf = agent.Active;
+                if (hf == null) continue;
                 Vector3 wpWorld = worldHit;
                 if (commandAltitudeAGLMeters > 0f)
                 {
@@ -365,8 +365,8 @@ namespace DroneSim.C2.StrategicView
             selectedDroneIds.Clear();
             foreach (var a in DroneRegistry.All)
             {
-                if (a == null || a.highFidelity == null) continue;
-                Vector3 v3 = cam.WorldToViewportPoint(a.highFidelity.PositionUnity);
+                if (a == null || a.Active == null) continue;
+                Vector3 v3 = cam.WorldToViewportPoint(a.Active.PositionUnity);
                 if (v3.z < 0f) continue;
                 if (v3.x >= minX && v3.x <= maxX && v3.y >= minY && v3.y <= maxY)
                     selectedDroneIds.Add(a.agentId);
@@ -382,8 +382,8 @@ namespace DroneSim.C2.StrategicView
             int sent = 0;
             foreach (var agent in EffectiveAgents())
             {
-                if (agent.highFidelity == null) continue;
-                var hf = agent.highFidelity;
+                var hf = agent.Active;
+                if (hf == null) continue;
                 enuPath.Clear();
                 float scale = hf.UnityUnitsPerMeter;
                 foreach (var w in _pathPoints)
@@ -420,8 +420,8 @@ namespace DroneSim.C2.StrategicView
             DroneAgent best = null;
             foreach (var a in DroneRegistry.All)
             {
-                if (a == null || a.highFidelity == null) continue;
-                Vector3 v3 = cam.WorldToViewportPoint(a.highFidelity.PositionUnity);
+                if (a == null || a.Active == null) continue;
+                Vector3 v3 = cam.WorldToViewportPoint(a.Active.PositionUnity);
                 if (v3.z < 0f) continue;
                 float d = ((Vector2)v3 - clickVp).sqrMagnitude;
                 if (d < bestSq) { bestSq = d; best = a; }

@@ -30,6 +30,19 @@ namespace DroneSim.Flight.UnityAdapter
         public N.Vector3 VelocityEnu => _v;
         public bool IsActive { get => _active; set => _active = value; }
 
+        public float UnityUnitsPerMeter => _scale;
+
+        /// <summary>Unity world → 이 드론 기준 ENU(m). HF 와 동일 규약(spawn 원점·scale).</summary>
+        public N.Vector3 UnityWorldToEnu(in Vector3 worldUnity)
+        {
+            Vector3 disp = (worldUnity - _originUnity) / Mathf.Max(_scale, 1e-6f);
+            return FrameConversion.UnityToEnu(disp);
+        }
+
+        /// <summary>ENU(m) → Unity world 위치 (시각화용).</summary>
+        public Vector3 EnuToUnityWorld(in N.Vector3 posEnu)
+            => _originUnity + FrameConversion.EnuToUnity(posEnu) * _scale;
+
         void Awake()
         {
             _scale = unityUnitsPerMeter > 0f ? unityUnitsPerMeter : FrameConversion.ResolveUnityUnitsPerMeter();

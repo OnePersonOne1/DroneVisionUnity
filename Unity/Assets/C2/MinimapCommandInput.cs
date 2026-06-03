@@ -293,8 +293,8 @@ namespace DroneSim.C2
             int sent = 0;
             foreach (var agent in EffectiveAgents())
             {
-                if (agent == null || agent.highFidelity == null) continue;
-                var hf = agent.highFidelity;
+                var hf = agent != null ? agent.Active : null;
+                if (hf == null) continue;
                 enuPath.Clear();
                 var cur = hf.PositionEnu;
                 foreach (var w in _pathWorldPoints)
@@ -333,8 +333,8 @@ namespace DroneSim.C2
             int n = 0;
             foreach (var agent in EffectiveAgents())
             {
-                if (agent == null || agent.highFidelity == null) continue;
-                var hf = agent.highFidelity;
+                var hf = agent != null ? agent.Active : null;
+                if (hf == null) continue;
                 var targetEnu = hf.UnityWorldToEnu(targetUnity);
                 var cur = hf.PositionEnu;
                 targetEnu = new N.Vector3(targetEnu.X, targetEnu.Y, cur.Z);   // 현 고도 유지
@@ -443,9 +443,9 @@ namespace DroneSim.C2
 
             foreach (var agent in DroneRegistry.All)
             {
-                if (agent == null || agent.highFidelity == null) continue;
+                var hf = agent != null ? agent.Active : null;
+                if (hf == null) continue;
                 seen.Add(agent.agentId);
-                var hf = agent.highFidelity;
 
                 bool isSel = selectionSrc != null && selectionSrc.IsSelected(agent.agentId);
 

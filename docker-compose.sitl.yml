@@ -1,0 +1,57 @@
+# PX4 SITL + Gazebo Harmonic 전용 compose — 기존 docker-compose.yml(rf_detr) 과 분리.
+# 다른 세션은 이 파일을 건드리지 않는다 (task/px4-sitl-bridge 전용).
+#
+# 기동:   docker compose -f docker-compose.sitl.yml up px4_sitl
+# 빌드:   docker compose -f docker-compose.sitl.yml build px4_sitl
+# 헤드리스: 기본 HEADLESS=1. GUI 보려면 환경에서 HEADLESS=0 + X11 허용(xhost +local:).
+#
+# network_mode: host — PX4 SITL 의 MAVLink(udp 14540/14550)를 호스트 loopback 에 노출.
+# 컨테이너 간 MAVLink 타깃 라우팅 문제를 피하고, 브리지(호스트/host-net 컨테이너)가
+# 127.0.0.1:14540 으로 바로 접속. (Linux 호스트 전제.)
+services:
+  px4_sitl:
+    container_name: px4_sitl_gz
+    build:
+      context: ./Python/sitl
+      dockerfile: Dockerfile.px4sitl
+    image: dronevision/px4-sitl:v1.16-harmonic
+    network_mode: host
+    runtime: nvidia            # GUI 렌더 시 GPU 가속 (헤드리스에선 무시돼도 무방).
+    shm_size: "2gb"
+    environment:
+      - PX4_GZ_WORLD=incheon      # 인천 원점 커스텀 world (gz 는 이걸로 원점 지정)
+      - PX4_HOME_LAT=37.384312    # 인천 앵커 (gz 엔 미적용, jMAVSim/Classic 호환용)
+      - PX4_HOME_LON=126.655307
+      - PX4_HOME_ALT=5.0
+      - HEADLESS=1                # GUI 보려면 0 으로
+      - PX4_TARGET=gz_x500        # 카메라 필요시 gz_x500_mono_cam
+      - DISPLAY=${DISPLAY:-:0}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw   # GUI(HEADLESS=0) 시 X11
+      - /mnt/ssd_0/workspace:/workspace    # repo 마운트 — 컨테이너 내 스모크테스트/브리지 접근
+    tty: true
+    stdin_open: true
+
+  # 레이어 2 — PX4 ↔ Unity 브리지 (MAVSDK). px4_sitl 과 같은 이미지 재사용(mavsdk 포함).
+  # 기동:  docker compose -f docker-compose.sitl.yml up px4_bridge
+  px4_bridge:
+    container_name: px4_bridge
+    image: dronevision/px4-sitl:v1.16-harmonic   # px4_sitl 빌드 산출물 재사용
+    network_mode: host                           # PX4 udp:14540 + Unity 127.0.0.1 접근
+    depends_on:
+      - px4_sitl
+    environment:
+      - UNITY_HOST=127.0.0.1   # Unity(에디터)가 호스트에서 실행 → loopback
+      - TELEM_PORT=9871        # 브리지 → Unity 텔레메트리
+      - CMD_PORT=9872          # Unity → 브리지 명령
+      - MAVLINK_URL=udpin://0.0.0.0:14540
+      - AUTO_TAKEOFF=1         # 첫 goto 시 지상이면 자동 arm+takeoff
+      - TAKEOFF_ALT=5
+    volumes:
+      - /mnt/ssd_0/workspace:/workspace
+    working_dir: /workspace/DroneVisionUnity-px4
+    entrypoint: ["python3", "Python/sitl/px4_bridge.py"]
+    tty: true
+    stdin_open: true

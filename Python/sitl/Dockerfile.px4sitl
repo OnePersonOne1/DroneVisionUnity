@@ -1,0 +1,48 @@
+# PX4 SITL + Gazebo Harmonic, built from PX4-Autopilot v1.16.0.
+#
+# 빌드: docker compose -f docker-compose.sitl.yml build px4_sitl   (최초 20~40분, 수 GB 다운로드)
+# 단독 테스트 근거: README.md 참조.
+#
+# Gazebo Harmonic 은 PX4 의 Tools/setup/ubuntu.sh 가 (--no-nuttx, sim-tools 유지 시)
+# 자동 설치하므로 별도 OSRF apt repo 단계가 필요 없다. NuttX(Pixhawk 펌웨어) 툴체인만 생략.
+FROM ubuntu:22.04
+
+ARG PX4_VERSION=v1.16.0
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Seoul
+
+# 기본 도구 (PX4 setup 스크립트가 나머지 의존성을 깐다).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git wget curl ca-certificates gnupg lsb-release sudo tzdata \
+        python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# PX4 v1.16.0 클론 (서브모듈 포함 — gz 모델/리소스 포함).
+RUN git clone --branch ${PX4_VERSION} --depth 1 --recurse-submodules \
+        https://github.com/PX4/PX4-Autopilot.git /opt/PX4-Autopilot
+
+WORKDIR /opt/PX4-Autopilot
+
+# 공통 의존성 + Gazebo Harmonic 설치 (--no-nuttx: Pixhawk 펌웨어 툴체인 생략).
+RUN bash ./Tools/setup/ubuntu.sh --no-nuttx
+
+# SITL 펌웨어 빌드 — **빌드 전용** 타깃. `make px4_sitl gz_x500` 형태는 빌드 후 시뮬을
+# 곧장 기동해버려(빌드 RUN 레이어가 pxh> 프롬프트에서 멈춤) Docker 빌드에 부적합.
+# `px4_sitl_default` 는 바이너리(build/px4_sitl_default/bin/px4)만 컴파일하고 기동 안 함.
+# gz 기동은 런타임(entrypoint)의 `make px4_sitl gz_x500` 이 이 빌드 산출물을 재사용.
+RUN make px4_sitl_default
+
+# 브리지/단독 스모크테스트용 MAVSDK (PX4 외부 API udp:14540).
+RUN pip3 install --no-cache-dir "mavsdk>=3,<4"
+
+# 인천 원점 커스텀 world — 빌드 스텝 *이후* COPY 라 펌웨어 빌드 캐시를 깨지 않는다.
+# entrypoint 에서 PX4_GZ_WORLD=incheon 으로 선택. (gz 는 PX4_HOME_* override 불가 → world 로 원점 지정.)
+COPY worlds/incheon.sdf /opt/PX4-Autopilot/Tools/simulation/gz/worlds/incheon.sdf
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# PX4 외부 API(MAVSDK) 포트. network_mode: host 사용 시 의미상 문서용.
+EXPOSE 14540/udp 14550/udp
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -92,7 +92,7 @@ namespace DroneSim.C2
             var seen = new HashSet<string>();
             foreach (var agent in DroneRegistry.All)
             {
-                if (agent == null || agent.highFidelity == null) continue;
+                if (agent == null || agent.Active == null) continue;
                 seen.Add(agent.agentId);
                 if (!_tags.TryGetValue(agent.agentId, out var tag))
                 {
@@ -101,12 +101,12 @@ namespace DroneSim.C2
                 }
                 // 텍스트 갱신 — AGL(지상고도).
                 float agl;
-                GroundAgl.TryGetAgl(agent.highFidelity.PositionUnity, agent.highFidelity.UnityUnitsPerMeter, ~0, out agl);
+                GroundAgl.TryGetAgl(agent.Active.PositionUnity, agent.Active.UnityUnitsPerMeter, ~0, out agl);
                 tag.tmp.text = $"{DroneNumber(agent.agentId)}\nAGL: {agl:F1} m";
                 tag.tmp.color = textColor;
 
                 // 위치: 드론 머리 위 (root = 라벨 바닥 기준점).
-                Vector3 dronePos = agent.highFidelity.PositionUnity;
+                Vector3 dronePos = agent.Active.PositionUnity;
                 tag.root.transform.position = dronePos + Vector3.up * offset;
 
                 // 폰트 크기 — constant screen-space (게임 표준) 또는 월드 고정.
