@@ -174,6 +174,14 @@ Cube (지도 시점 / GPS HUD):
 | Home / Backspace | 전략 카메라 Cube 위로 재중심 |
 | M / Shift+M | 미니맵 토글 / 기본 크기로 리셋 |
 
+PX4 SITL 드론 (`drone_sitl_N`, 주황 — `docker-compose.sitl.yml` 떠 있을 때):
+
+| 입력 | 동작 |
+|---|---|
+| RMB / Ctrl+드래그 / Shift+RMB | 기존 SetWaypoint / SetPath / Queue 와 동일 (자동 라우팅) |
+| Numpad7 / Numpad8 / Numpad9 / Numpad6 | ARM / TAKEOFF (5m) / LAND / RTL (`SitlControlInput`) |
+| F9 | SITL 드론 추가 spawn (현재 1대 전제) |
+
 전체 키 매핑은 [`조작법.md`](조작법.md) 참조.
 
 ## 멀티 디스플레이

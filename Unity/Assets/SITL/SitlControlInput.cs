@@ -16,11 +16,13 @@ namespace DroneSim.SITL
     [DisallowMultipleComponent]
     public class SitlControlInput : MonoBehaviour
     {
-        [Header("키 (조작법 기존 키와 충돌 회피)")]
-        public Key armKey = Key.U;
-        public Key takeoffKey = Key.K;
-        public Key landKey = Key.L;
-        public Key rtlKey = Key.G;
+        [Header("키 (조작법 기존 키와 충돌 회피 — Numpad layout)")]
+        // 기본 키는 Numpad 사용 — U/K/L/G 는 기존 SensorViewMode/TwoPointCalibrator/
+        // ClassLegend/CubeGpsTeleport 와 충돌. 노트북에서 Numpad 없으면 인스펙터에서 변경.
+        public Key armKey = Key.Numpad7;       // arm
+        public Key takeoffKey = Key.Numpad8;   // takeoff
+        public Key landKey = Key.Numpad9;      // land
+        public Key rtlKey = Key.Numpad6;       // RTL (Return-To-Launch)
 
         [Header("Takeoff 고도 (real m, AGL)")]
         public float takeoffAltMeters = 5f;
