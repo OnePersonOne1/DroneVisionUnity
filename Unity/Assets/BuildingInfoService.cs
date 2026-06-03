@@ -45,7 +45,18 @@ public class BuildingInfoService : MonoBehaviour
     public float prefetchTimeoutSec = 180f;
 
     [Serializable]
-    public class Info { public string title, category, summary, detail; }
+    public class Info
+    {
+        // 카드 기본 4필드 (기존 호환). detail 은 v2 스키마에서 빈 값.
+        public string title, category, summary, detail;
+        // v2 스키마 정형 필드 — info_server.build_card 의 결정론적 출력.
+        public string address;
+        public string floors;           // "지상 N층" or "지상 N층 / 지하 M층" or null
+        public float height_m;          // 0 = 미상 (서버가 null 보내면 JsonUtility 가 0 으로 해석)
+        public string use;
+        public string approval_date;
+        public string schema_version;
+    }
 
     [Serializable]
     public class BuildingResult

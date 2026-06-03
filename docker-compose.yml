@@ -2,7 +2,8 @@ version: "2.3"
 services:
   rf_detr_docker: # container name
     container_name: ipwebcam_rfdetr_container
-    image: hanmyeongil/ipwebcam_rfdetr:v1
+    image: hanmyeongil/ipwebcam_rfdetr:v2
+    # image: hanmyeongil/ipwebcam_rfdetr:v1   # info_service deps 추가 전 버전
     # image: hanmyeongil/yolox_han:v2 # imgae name
     # image: pytorch/pytorch:1.12.1-cuda11.3-cudnn8-devel # old
     runtime: nvidia
@@ -15,7 +16,11 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:ro # GUI program                                            
       - /mnt/ssd_0/workspace:/workspace # link with docker's workspace
       - /mnt/ssd_0/dataset:/dataset # link with docker's dataset
-    environment:                                                                          
-      - DISPLAY=$DISPLAY # monitor display                                                       
+    environment:
+      - DISPLAY=$DISPLAY # monitor display
       - NVIDIA_VISIBLE_DEVICES=all # using all GPU, if you want to select, use 0, 1, ...
+    # gitignored .env 에서 시크릿/키 로드 (repo root 의 .env). KAKAO_REST_API_KEY 등.
+    # 파일 없으면 compose 가 경고만 — 키 안 쓰는 팀원은 그대로 동작.
+    env_file:
+      - .env
 

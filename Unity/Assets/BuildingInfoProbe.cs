@@ -28,7 +28,7 @@ public class BuildingInfoProbe : MonoBehaviour
     public float maxRayDistance = 2000000f;
 
     [Header("Trigger")]
-    [Tooltip("on-demand 조회 키.")]
+    [Tooltip("on-demand 조회 키 — Display 1 (FP 카메라/십자선) 기준 중앙 픽셀 raycast.")]
     public Key probeKey = Key.B;
     [Tooltip("dwell-auto 모드 on/off 토글 키.")]
     public Key autoToggleKey = Key.N;
@@ -37,6 +37,16 @@ public class BuildingInfoProbe : MonoBehaviour
     public float dwellSeconds = 1.5f;
     [Tooltip("auto 모드 중복 조회 방지: 이전 결과와 이 거리(m) 이상 떨어져야 재조회.")]
     public float autoMinMoveMeters = 5f;
+
+    [Header("Display 4 (Sensor View) probe — 별도 키")]
+    [Tooltip("Display 4 SensorViewMode 카메라 중앙으로 별도 probe. " +
+             "None = 비활성. Display 1 probe (B) 와 병존 — 둘 다 사용 가능.")]
+    public Key sensorProbeKey = Key.Backslash;
+    [Tooltip("비우면 sensorDisplayIndex 일치 카메라 자동.")]
+    public Camera sensorProbeCameraOverride;
+    public int sensorDisplayIndex = 3;
+    [Tooltip("Display 1 (FP) probe 카메라 override. 비우면 FirstPersonView.fpCamera 자동.")]
+    public Camera fpProbeCameraOverride;
 
     [Header("표시 (선택)")]
     public TMP_Text infoText;
@@ -95,7 +105,11 @@ public class BuildingInfoProbe : MonoBehaviour
         var kb = Keyboard.current;
         if (kb != null)
         {
-            if (kb[probeKey].wasPressedThisFrame) Probe();
+            // B → Display 1 (FP 카메라). 십자선 기준 raycast — "초창기" 동작.
+            if (kb[probeKey].wasPressedThisFrame) ProbeWithCamera(GetFpCamera(), "Display1/FP");
+            // 별도 키 → Display 4 (Sensor View). 라이브 모드 sensor 시점 기준 raycast.
+            if (sensorProbeKey != Key.None && kb[sensorProbeKey].wasPressedThisFrame)
+                ProbeWithCamera(GetSensorCamera(), "Display4/Sensor");
             if (kb[autoToggleKey].wasPressedThisFrame)
             {
                 autoMode = !autoMode;
@@ -139,13 +153,61 @@ public class BuildingInfoProbe : MonoBehaviour
     }
 
     /// 중앙 픽셀 ray 의 전체 RaycastHit (point/normal/collider/triangleIndex).
+    /// 카메라 미지정 시 ResolveActiveCamera() (= 기존 동작, UpdateHighlight·AutoTick 폴백).
     public bool TryGetCenterRaycast(out RaycastHit hit)
+        => TryGetCenterRaycast(ResolveActiveCamera(), out hit);
+
+    /// 카메라 명시 — 카메라 자체 pixelWidth/Height 사용 (Display 1 ≠ primary 일 때도 정확).
+    public bool TryGetCenterRaycast(Camera cam, out RaycastHit hit)
     {
         hit = default;
-        var cam = ResolveActiveCamera();
         if (cam == null) return false;
-        Ray r = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
+        float w = cam.pixelWidth  > 0 ? cam.pixelWidth  : Screen.width;
+        float h = cam.pixelHeight > 0 ? cam.pixelHeight : Screen.height;
+        Ray r = cam.ScreenPointToRay(new Vector3(w * 0.5f, h * 0.5f, 0f));
         return Physics.Raycast(r, out hit, maxRayDistance, buildingMask);
+    }
+
+    /// Display 1 (FP 카메라) — fpProbeCameraOverride 우선, 없으면 FirstPersonView.fpCamera.
+    Camera GetFpCamera()
+    {
+        if (fpProbeCameraOverride != null) return fpProbeCameraOverride;
+        if (_fpv == null || _fpv.fpCamera == null) _fpv = FindObjectOfType<FirstPersonView>();
+        return _fpv != null ? _fpv.fpCamera : null;
+    }
+
+    /// Display 4 (Sensor View) — sensorProbeCameraOverride 우선, 없으면 targetDisplay 매칭.
+    Camera GetSensorCamera()
+    {
+        if (sensorProbeCameraOverride != null) return sensorProbeCameraOverride;
+        var cams = Camera.allCameras;
+        for (int i = 0; i < cams.Length; i++)
+        {
+            var c = cams[i];
+            if (c.targetTexture != null) continue;
+            if (c.targetDisplay == sensorDisplayIndex) return c;
+        }
+        return null;
+    }
+
+    /// 명시한 카메라의 중앙 픽셀로 probe + 라벨 표시. Display 1·4 둘 다 같은 코드 경로.
+    public void ProbeWithCamera(Camera cam, string label)
+    {
+        if (cam == null)
+        {
+            Debug.LogWarning($"[BuildingProbe] [{label}] 카메라 없음 — Inspector " +
+                             "fpProbeCameraOverride / sensorProbeCameraOverride 또는 " +
+                             "해당 컴포넌트(FirstPersonView / SensorViewMode) 확인.");
+            Report($"[{label}] 카메라 미해결");
+            return;
+        }
+        if (!TryGetCenterRaycast(cam, out RaycastHit h))
+        {
+            Report($"[{label}] 중앙 픽셀: 건물 명중 없음 (cam={cam.name}, display {cam.targetDisplay + 1})");
+            return;
+        }
+        Debug.Log($"[BuildingProbe] [{label}] cam={cam.name} display={cam.targetDisplay + 1}");
+        ProbeAt(h);
     }
 
     /// 지금 화면을 렌더 중인 카메라. FP 모드면 십자선과 동일한 fpCamera 를 반드시 써야

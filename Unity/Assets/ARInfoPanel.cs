@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -155,21 +156,51 @@ public class ARInfoPanel : MonoBehaviour
             _cards[j].root.SetActive(false);
     }
 
+    // v2 스키마 카드 — 6 항목을 한글 라벨로 표시:
+    //   <건물명>  [종류]
+    //   주소: ...
+    //   층수: ...
+    //   높이: ... m
+    //   개요: ...
+    // 값 없는 필드는 라인 자체 생략. JSON 키는 영어, 표시 라벨만 한글.
     string Format(BuildingInfoService.BuildingResult r, Color titleColor)
     {
         var info = r != null ? r.info : null;
         string title = info != null && !string.IsNullOrEmpty(info.title) ? info.title
                        : (r != null && !string.IsNullOrEmpty(r.name) ? r.name : "건물");
         string cat = info != null ? info.category : "";
+        string addr = info != null ? info.address : (r != null ? r.address : "");
+        string floors = info != null ? info.floors : "";
+        string use = info != null ? info.use : "";
+        string approval = info != null ? info.approval_date : "";
         string sum = info != null ? info.summary : "";
-        string det = info != null ? info.detail : "";
+        float hM = info != null ? info.height_m : 0f;
+
         string hex = ColorUtility.ToHtmlStringRGB(titleColor);
-        string s = $"<size={titleFontSize}><color=#{hex}><b>{title}</b></color></size>";
-        if (!string.IsNullOrEmpty(cat)) s += $"  <color=#aaccff>[{cat}]</color>";
-        if (!string.IsNullOrEmpty(sum)) s += $"\n{sum}";
-        if (!string.IsNullOrEmpty(det))
-            s += $"\n<size={Mathf.Max(1f, bodyFontSize - 2f)}><color=#cccccc>{det}</color></size>";
-        return s;
+        string labelColor = "#aaccff";    // 보조 라벨 회청색
+        string valueColor = "#dddddd";    // 본문 값
+
+        var sb = new StringBuilder();
+        sb.Append($"<size={titleFontSize}><color=#{hex}><b>{title}</b></color></size>");
+        if (!string.IsNullOrEmpty(cat))
+            sb.Append($"  <color={labelColor}>[{cat}]</color>");
+
+        AppendField(sb, labelColor, valueColor, "주소", addr);
+        AppendField(sb, labelColor, valueColor, "층수", floors);
+        AppendField(sb, labelColor, valueColor, "높이",
+            hM > 0f ? hM.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + " m" : null);
+        AppendField(sb, labelColor, valueColor, "용도", use);
+        AppendField(sb, labelColor, valueColor, "사용승인", approval);
+        AppendField(sb, labelColor, valueColor, "개요", sum);
+
+        return sb.ToString();
+    }
+
+    static void AppendField(StringBuilder sb, string labelColor, string valueColor,
+                            string label, string value)
+    {
+        if (string.IsNullOrEmpty(value)) return;
+        sb.Append($"\n<color={labelColor}>{label}:</color> <color={valueColor}>{value}</color>");
     }
 
     void OnRequested(Vector3 hit)
