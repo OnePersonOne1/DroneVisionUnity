@@ -13,12 +13,23 @@
 """
 import json
 import os
+import time
 
 import requests
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.environ.get("INFO_LLM_MODEL", "qwen2.5:14b")
-TIMEOUT = float(os.environ.get("INFO_LLM_TIMEOUT", "60"))
+# 기본 timeout 짧게 — GPU 가 다른 작업으로 busy 하면 generate 가 hang.
+# LLM 실패 시 fallback briefing 으로 즉시 빠지도록 (INFO_LLM_TIMEOUT 으로 조정 가능).
+TIMEOUT = float(os.environ.get("INFO_LLM_TIMEOUT", "15"))
+# 실패 cooldown — 한 번 timeout/에러 나면 N초간 LLM 호출 skip. GPU hang 이 풀릴 시간 확보.
+FAIL_COOLDOWN = float(os.environ.get("INFO_LLM_FAIL_COOLDOWN", "60"))
+_unavailable_until = 0.0
+
+
+def _mark_unavailable():
+    global _unavailable_until
+    _unavailable_until = time.time() + FAIL_COOLDOWN
 
 SYSTEM = (
     "당신은 지도 위 건물 정보를 간결하게 정리해 보여주는 도우미입니다. "
@@ -110,11 +121,133 @@ def fallback_info(geo):
 
 
 def available(host=OLLAMA_HOST, timeout=3):
+    # 직전 실패 cooldown 중이면 즉시 False — generate hang 시 호출 폭증 방지.
+    if time.time() < _unavailable_until:
+        return False
     try:
         r = requests.get(f"{host}/api/tags", timeout=timeout)
         return r.status_code == 200
     except requests.RequestException:
+        _mark_unavailable()
         return False
+
+
+## ── 상황 브리핑 (situation assessment) ─────────────────────────────────
+# 작업2: /assess 가 정형 feature 를 만들어 LLM 에 넘기면, LLM 은 문장만 합성.
+# 판정(risk/spreading/priority) 은 룰이 이미 끝낸 상태로 들어옴 — LLM 은 변경 금지.
+BRIEFING_SYSTEM = (
+    "당신은 재난 상황 모니터링을 보조하는 한국어 상황 브리핑 작성자입니다. "
+    "제공된 feature(화재 위치·시간대·주변 건물 용도/층수/추정 재실/거리)만 사용해 "
+    "한국어로 간결한 상황 브리핑을 작성합니다. 외부 지식·추측·새 사실 추가 금지. "
+    "주어진 risk 등급과 확산 판정은 변경하지 말고 문장으로 풀어 쓰기만 합니다. "
+    "반드시 다음 JSON 형식으로만 응답하세요: "
+    '{"briefing": "3~5문장 한국어 상황 요약 — 위험도, 시간대 영향, 우선 주목 건물, 권장 사항"}'
+)
+
+
+def _facts_for_briefing(features):
+    """feature dict → LLM 입력용 사실 텍스트 (한국어). 추측 여지 차단을 위해 모든 필드 명시."""
+    lines = []
+    lines.append(f"시각: {features.get('sim_time_iso','?')}  (시간대: {features.get('time_bucket','?')})")
+    fc, sc = features.get("fire_count", 0), features.get("smoke_count", 0)
+    lines.append(f"화재 신고: fire={fc}건, smoke={sc}건  (총 {fc + sc}건)")
+    risk = features.get("risk", {})
+    lines.append(f"위험도 판정(룰): {risk.get('level','?')} — {risk.get('reason','')}")
+    lines.append(f"확산 판정(룰): {features.get('spreading','?')}")
+    pri = features.get("priority_buildings", []) or []
+    if pri:
+        lines.append("주변 건물 (우선순위순):")
+        for b in pri[:8]:
+            occ = b.get("occupancy") or {}
+            lines.append(
+                f"  - {b.get('title','?')}"
+                f" | 용도={b.get('use') or '-'}"
+                f" | 층수={b.get('floors') or '-'}"
+                f" | 추정재실={occ.get('level','-')}({occ.get('count_est','?')}명)"
+                f" | 거리={b.get('min_dist_m', 0):.0f}m"
+            )
+    else:
+        lines.append("주변 건물 정보 없음 (반경 내 건물 미식별).")
+    stations = features.get("nearest_fire_stations") or []
+    if stations:
+        lines.append("가까운 119 안전센터 (top-5, 가까운 순):")
+        for s in stations[:5]:
+            vt = ",".join((s.get("vehicle_types") or [])[:6]) or "-"
+            lines.append(f"  - {s.get('name','?')}  거리 {s.get('distance_m',0):.0f}m  "
+                         f"보유 {s.get('vehicle_total',0)}대  차종=[{vt}]  "
+                         f"주소={s.get('road_address') or s.get('jibun_address') or '-'}")
+    flags = features.get("hazard_flags") or {}
+    if flags:
+        marks = []
+        if flags.get("highrise"):    marks.append("고층")
+        if flags.get("industrial"):  marks.append("산업/위험물")
+        if flags.get("educational"): marks.append("교육시설")
+        if flags.get("crowded"):     marks.append("인원밀집")
+        if flags.get("multi_fire"):  marks.append("다중화재")
+        if flags.get("hot_zone"):    marks.append("핫존")
+        lines.append(f"현장 특성 플래그: {', '.join(marks) if marks else '특이사항 없음'}")
+    rec = features.get("vehicle_recommendation") or []
+    if rec:
+        lines.append("권장 차량 (룰 산출 — 변경 금지, 표현만 다듬을 것):")
+        for r in rec:
+            mark = "✓" if r.get("ok") else "⚠"
+            lines.append(f"  {mark} {r['type']}: 필요 {r['needed']}대 / 가용(top-5) {r['available']}대 — {r['reason']}")
+    return "\n".join(lines)
+
+
+def briefing(features, model=None, host=OLLAMA_HOST, timeout=TIMEOUT):
+    """상황 feature → 한국어 브리핑 문장 (Ollama). 실패 시 None — 호출부가 fallback_briefing 사용.
+
+    LLM 은 "주어진 feature 만 사용·룰 판정 변경 금지·JSON only" 제약 하에 문장만 만든다.
+    """
+    model = model or OLLAMA_MODEL
+    user = "다음 사실만으로 상황 브리핑을 작성하세요. 등급·확산 판정은 변경 금지.\n" + _facts_for_briefing(features)
+    try:
+        r = requests.post(
+            f"{host}/api/chat",
+            json={
+                "model": model,
+                "messages": [{"role": "system", "content": BRIEFING_SYSTEM},
+                             {"role": "user", "content": user}],
+                "format": "json",
+                "stream": False,
+                "options": {"temperature": 0.2, "num_predict": 384},
+            },
+            timeout=timeout,
+        )
+        r.raise_for_status()
+        data = json.loads(r.json()["message"]["content"])
+    except (requests.RequestException, KeyError, json.JSONDecodeError) as ex:
+        print(f"[llm] briefing 실패: {ex} — {FAIL_COOLDOWN:.0f}s 동안 LLM skip")
+        _mark_unavailable()
+        return None
+    return (data.get("briefing") or "").strip() or None
+
+
+def fallback_briefing(features):
+    """LLM 미가동/실패 시 정형 조립. /assess 가 항상 무언가 반환할 수 있도록."""
+    time_bucket = features.get("time_bucket", "?")
+    # occupancy 의 한글 라벨 재사용.
+    try:
+        from occupancy import TIME_LABEL_KO
+        tb_ko = TIME_LABEL_KO.get(time_bucket, time_bucket)
+    except ImportError:
+        tb_ko = time_bucket
+    fc = features.get("fire_count", 0)
+    sc = features.get("smoke_count", 0)
+    risk = features.get("risk", {})
+    spreading = features.get("spreading", "?")
+    pri = features.get("priority_buildings", []) or []
+    top_names = ", ".join((b.get("title") or "건물") for b in pri[:3])
+
+    parts = [
+        f"[{tb_ko}] 화재 {fc}건·연기 {sc}건 보고.",
+        f"위험도 {risk.get('level','-')} ({risk.get('reason','-')}).",
+        f"확산 상태: {spreading}.",
+    ]
+    if top_names:
+        parts.append(f"주요 인접 건물: {top_names}.")
+    return " ".join(parts)
 
 
 def generate(geo, model=None, host=OLLAMA_HOST, timeout=TIMEOUT):
@@ -137,7 +270,8 @@ def generate(geo, model=None, host=OLLAMA_HOST, timeout=TIMEOUT):
         r.raise_for_status()
         data = json.loads(r.json()["message"]["content"])
     except (requests.RequestException, KeyError, json.JSONDecodeError) as ex:
-        print(f"[llm] generate 실패: {ex}")
+        print(f"[llm] generate 실패: {ex} — {FAIL_COOLDOWN:.0f}s 동안 LLM skip")
+        _mark_unavailable()
         return None
     # 이름은 사실 소스(Kakao>GIS>OSM)를 신뢰 — LLM 이 변형하지 못하게 고정.
     return {
