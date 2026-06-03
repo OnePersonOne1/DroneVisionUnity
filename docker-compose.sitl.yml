@@ -51,7 +51,7 @@ services:
       - TAKEOFF_ALT=5
     volumes:
       - /mnt/ssd_0/workspace:/workspace
-    working_dir: /workspace/DroneVisionUnity-px4
+    working_dir: /workspace/DroneVisionUnity
     entrypoint: ["python3", "Python/sitl/px4_bridge.py"]
     tty: true
     stdin_open: true
