@@ -73,10 +73,17 @@ public class ProjectionUdpReceiver : MonoBehaviour
     public bool passThroughEnclosingBuilding = true;
 
     [Header("Markers")]
-    [Tooltip("0 = never destroy. >0 = auto destroy after seconds.")]
+    [Tooltip("기타 클래스(human/vehicle 등) 마커 lifetime — 0 = 영구, >0 = 자동 소멸 (초).")]
     public float markerLifetime = 2f;
+    [Tooltip("fire 마커 lifetime — 0 = 영구 (기본). 화재 상황 추적을 위해 사라지지 않는 게 보통.")]
+    public float fireMarkerLifetime = 0f;
+    [Tooltip("smoke 마커 lifetime — 0 = 영구 (기본).")]
+    public float smokeMarkerLifetime = 0f;
     [Tooltip("폴백 마커 기본 굵기/배율(세로 막대). 멀리서도 보이도록 키워라.")]
     public float markerScale = 3f;
+    [Tooltip("fire = Cube (직사각형, scale fireBoxSize×3), smoke = 반투명 회색 Cylinder. " +
+             "그 외 클래스는 markerScale 의 Capsule.")]
+    public DetectionMarkerVisual.Settings shapeSettings = DetectionMarkerVisual.Settings.Default;
 
     [Header("Debug 시각화 (광선·GPS 원점, 토글 가능)")]
     [Tooltip("켜면 검출별로 GPS 원점 구 + 광선 LineRenderer 가 런타임 Game 뷰에 표시됨.")]
@@ -420,16 +427,26 @@ public class ProjectionUdpReceiver : MonoBehaviour
         {
             go = new GameObject("DetectionMarker");
             go.transform.position = pos;
-            // capsule fallback 폭은 기존 markerScale 사용, fire/smoke 는 DetectionMarkerVisual.Settings.Default.
-            var st = DetectionMarkerVisual.Settings.Default;
+            var st = shapeSettings;
             st.capsuleScale = markerScale;
             DetectionMarkerVisual.BuildForClass(go.transform, className, color, st);
         }
         go.name = $"{className}_{conf:F2}";
         go.AddComponent<DetectionMarker>().Init(className, color);   // 미니맵/범주표 추적
         go.transform.SetParent(GetMarkerRoot(), true);
-        if (markerLifetime > 0f) Destroy(go, markerLifetime);
+        float life = LifetimeFor(className);
+        if (life > 0f) Destroy(go, life);
         markerSpawnCount++;
+    }
+
+    /// <summary>클래스명 → 적용할 자동 소멸 시간(초). 0 = 영구.</summary>
+    float LifetimeFor(string className)
+    {
+        if (string.IsNullOrEmpty(className)) return markerLifetime;
+        string cn = className.ToLower();
+        if (cn.Contains("fire"))  return fireMarkerLifetime;
+        if (cn.Contains("smoke")) return smokeMarkerLifetime;
+        return markerLifetime;
     }
 
     /// 광선 + GPS 원점을 런타임 Game 뷰에 표시 (showDebugVisuals 토글).
