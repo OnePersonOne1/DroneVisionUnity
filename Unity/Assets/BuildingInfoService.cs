@@ -78,6 +78,7 @@ public class BuildingInfoService : MonoBehaviour
         public BuildingResult info;
         public float hitY;
         public Vector3 world;   // 명중 월드 위치(미니맵 마커 등)
+        public bool pinned;      // 핀 고정 — ClearSelections(X 키) 가 무시. 카드의 핀 버튼으로 토글.
     }
 
     static readonly Color[] PALETTE = {
@@ -158,8 +159,14 @@ public class BuildingInfoService : MonoBehaviour
         else
         {
             _selections.Add(new Selection { key = key, info = res, hitY = world.y, world = world, color = PickColor() });
-            while (_selections.Count > Mathf.Max(1, maxSelections))
-                _selections.RemoveAt(0);
+            // 초과 시 가장 오래된 비핀 항목부터 제거. 모두 핀이면 그대로 둠 (사용자 의도 우선).
+            int cap = Mathf.Max(1, maxSelections);
+            while (_selections.Count > cap)
+            {
+                int oldestUnpinned = _selections.FindIndex(s => !s.pinned);
+                if (oldestUnpinned < 0) break;
+                _selections.RemoveAt(oldestUnpinned);
+            }
         }
         SelectionsChanged?.Invoke(_selections);
     }
@@ -173,10 +180,28 @@ public class BuildingInfoService : MonoBehaviour
         return PALETTE[_selections.Count % PALETTE.Length];
     }
 
+    /// X 키 — 핀된 카드는 보존, 나머지만 제거.
     public void ClearSelections()
     {
-        if (_selections.Count == 0) return;
-        _selections.Clear();
+        int removed = _selections.RemoveAll(s => !s.pinned);
+        if (removed > 0) SelectionsChanged?.Invoke(_selections);
+    }
+
+    /// 카드의 핀 버튼 → 호출. 토글.
+    public void TogglePin(string key)
+    {
+        var sel = _selections.Find(s => s.key == key);
+        if (sel == null) return;
+        sel.pinned = !sel.pinned;
+        SelectionsChanged?.Invoke(_selections);
+    }
+
+    /// 카드의 × 버튼 → 호출. 단일 선택 제거 (핀 무관).
+    public void RemoveSelection(string key)
+    {
+        int idx = _selections.FindIndex(s => s.key == key);
+        if (idx < 0) return;
+        _selections.RemoveAt(idx);
         SelectionsChanged?.Invoke(_selections);
     }
 

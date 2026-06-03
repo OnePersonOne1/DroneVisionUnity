@@ -19,9 +19,14 @@ public class ARInfoPanel : MonoBehaviour
     public BuildingInfoService service;
 
     [Header("카드")]
+    [Tooltip("폭 고정. 높이는 텍스트 preferredHeight + verticalPadding 으로 자동 산정 (cardSize.y 는 최소값으로만 작용).")]
     public Vector2 cardSize = new Vector2(560f, 116f);
     public float cardGap = 8f;
-    public float bottomMargin = 120f;
+    [Tooltip("카드 위·아래 안쪽 여백 (textRect.offsetMin.y + offsetMax.y 의 절댓값 합).")]
+    public float verticalPadding = 18f;
+    [Tooltip("좌상단으로부터 (x, y) 픽셀 여백. 위에서 아래로 stack.")]
+    public Vector2 topLeftMargin = new Vector2(20f, 20f);
+    public float bottomMargin = 120f;        // legacy, 미사용 (씬 직렬화 호환).
     public float titleFontSize = 26f;
     public float bodyFontSize = 17f;
     public Color cardBackColor = new Color(0f, 0f, 0f, 0.62f);
@@ -30,16 +35,28 @@ public class ARInfoPanel : MonoBehaviour
     [Tooltip("이 시간(초) 안에 결과가 오면 '조회 중…' 을 띄우지 않음(깜빡임 방지).")]
     public float loadingDelay = 0.25f;
 
+    [Header("카드 버튼")]
+    public Vector2 buttonSize = new Vector2(26f, 26f);
+    public Color pinOffColor = new Color(1f, 1f, 1f, 0.55f);
+    public Color pinOnColor = new Color(1f, 0.82f, 0.25f, 1f);
+    public Color deleteColor = new Color(1f, 0.55f, 0.55f, 1f);
+    public Color buttonBgColor = new Color(1f, 1f, 1f, 0.08f);
+
     Canvas _canvas;
     GameObject _loading;
     TextMeshProUGUI _loadingText;
     Coroutine _pendingLoad;
+    float _nextStackY;     // 마지막 Render 직후 다음 카드/loading 이 들어갈 y (anchor=(0,1) 기준 음수).
 
     class Card
     {
         public GameObject root;
         public Image strip;
         public TextMeshProUGUI text;
+        public Button pinBtn;
+        public TextMeshProUGUI pinLabel;
+        public Button deleteBtn;
+        public string boundKey;        // 어느 selection 에 묶여 있는지 — listener 재바인딩 추적.
     }
     readonly List<Card> _cards = new List<Card>();
 
@@ -81,6 +98,8 @@ public class ARInfoPanel : MonoBehaviour
         lrt.sizeDelta = new Vector2(220f, 40f);
         _loadingText = NewText(_loading.transform, "<b>조회 중…</b>");
         _loading.SetActive(false);
+
+        _nextStackY = -topLeftMargin.y;
     }
 
     GameObject NewPanel(string name, Color bg)
@@ -88,11 +107,13 @@ public class ARInfoPanel : MonoBehaviour
         var go = new GameObject(name);
         var rt = go.AddComponent<RectTransform>();
         rt.SetParent(_canvas.transform, false);
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
-        rt.pivot = new Vector2(0.5f, 0f);
+        // 좌상단 정렬 — 위에서 아래로 stack.
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
         var img = go.AddComponent<Image>();
         img.color = bg;
-        img.raycastTarget = false;
+        // 카드 배경은 raycastTarget=true 로 — 카드 위에서 클릭이 뒤(3D 카메라)로 새지 않도록.
+        img.raycastTarget = true;
         return go;
     }
 
@@ -119,21 +140,76 @@ public class ARInfoPanel : MonoBehaviour
     {
         while (i >= _cards.Count)
         {
-            var root = NewPanel($"Card_{_cards.Count}", cardBackColor);
-            ((RectTransform)root.transform).sizeDelta = cardSize;
+            var card = new Card();
+            card.root = NewPanel($"Card_{_cards.Count}", cardBackColor);
+            ((RectTransform)card.root.transform).sizeDelta = cardSize;
             // 좌측 색 띠
             var stripGo = new GameObject("Strip");
             var srt = stripGo.AddComponent<RectTransform>();
-            srt.SetParent(root.transform, false);
+            srt.SetParent(card.root.transform, false);
             srt.anchorMin = new Vector2(0f, 0f); srt.anchorMax = new Vector2(0f, 1f);
             srt.pivot = new Vector2(0f, 0.5f);
             srt.sizeDelta = new Vector2(7f, 0f); srt.anchoredPosition = Vector2.zero;
-            var strip = stripGo.AddComponent<Image>();
-            strip.raycastTarget = false;
-            var text = NewText(root.transform, "");
-            _cards.Add(new Card { root = root, strip = strip, text = text });
+            card.strip = stripGo.AddComponent<Image>();
+            card.strip.raycastTarget = false;
+
+            // 본문 텍스트 — 우측 패딩을 늘려 핀/× 버튼 자리 확보.
+            card.text = NewText(card.root.transform, "");
+            var trt = (RectTransform)card.text.transform;
+            float btnLane = buttonSize.x * 2f + 14f;   // 두 버튼 + 사이 간격.
+            trt.offsetMax = new Vector2(-btnLane, -8f);
+
+            // 핀 버튼 (우상단 — × 보다 왼쪽).
+            card.pinBtn = MakeIconButton(card.root.transform, "Pin", "P",
+                rightOffset: -(buttonSize.x + 8f), topOffset: -6f, out card.pinLabel);
+            // 삭제 버튼 (우상단).
+            card.deleteBtn = MakeIconButton(card.root.transform, "Del", "×",
+                rightOffset: -6f, topOffset: -6f, out var delLabel);
+            if (delLabel != null) delLabel.color = deleteColor;
+
+            _cards.Add(card);
         }
         return _cards[i];
+    }
+
+    Button MakeIconButton(Transform parent, string name, string label,
+                          float rightOffset, float topOffset, out TextMeshProUGUI labelTmp)
+    {
+        var go = new GameObject(name);
+        var rt = go.AddComponent<RectTransform>();
+        rt.SetParent(parent, false);
+        rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(1f, 1f);
+        rt.sizeDelta = buttonSize;
+        rt.anchoredPosition = new Vector2(rightOffset, topOffset);
+
+        var bg = go.AddComponent<Image>();
+        bg.color = buttonBgColor;
+        bg.raycastTarget = true;
+        var btn = go.AddComponent<Button>();
+        btn.transition = Selectable.Transition.ColorTint;
+        var col = btn.colors;
+        col.normalColor = Color.white;
+        col.highlightedColor = new Color(1f, 1f, 1f, 1.2f);
+        col.pressedColor = new Color(1f, 1f, 1f, 0.7f);
+        btn.colors = col;
+        btn.targetGraphic = bg;
+
+        var lblGo = new GameObject("Label");
+        var lrt = lblGo.AddComponent<RectTransform>();
+        lrt.SetParent(rt, false);
+        lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
+        lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+        labelTmp = lblGo.AddComponent<TextMeshProUGUI>();
+        labelTmp.text = label;
+        labelTmp.color = Color.white;
+        labelTmp.fontSize = bodyFontSize + 1f;
+        labelTmp.fontStyle = FontStyles.Bold;
+        labelTmp.alignment = TextAlignmentOptions.Center;
+        labelTmp.raycastTarget = false;
+        var kr = koreanFont != null ? koreanFont : ResolveKoreanFont();
+        if (kr != null) labelTmp.font = kr;
+        return btn;
     }
 
     void Render(List<BuildingInfoService.Selection> sels)
@@ -141,19 +217,55 @@ public class ARInfoPanel : MonoBehaviour
         if (_pendingLoad != null) { StopCoroutine(_pendingLoad); _pendingLoad = null; }
         if (_loading != null) _loading.SetActive(false);
 
+        // 카드 누적 y 커서 — 위에서 아래로 가변 높이 stack.
+        float yCursor = -topLeftMargin.y;
         for (int i = 0; i < sels.Count; i++)
         {
             var sel = sels[i];
             var card = EnsureCard(i);
             card.root.SetActive(true);
-            ((RectTransform)card.root.transform).anchoredPosition =
-                new Vector2(0f, bottomMargin + i * (cardSize.y + cardGap));
+            var rt = (RectTransform)card.root.transform;
+
+            // 폭 먼저 고정 → 텍스트 stretch 가 정상 폭을 가짐 → preferredHeight 정확.
+            rt.sizeDelta = new Vector2(cardSize.x, cardSize.y);
+
             Color opaque = new Color(sel.color.r, sel.color.g, sel.color.b, 1f);
             card.strip.color = opaque;
             card.text.text = Format(sel.info, opaque);
+
+            // TMP preferredHeight 강제 갱신 후 카드 높이 산정.
+            card.text.ForceMeshUpdate();
+            float textH = card.text.preferredHeight;
+            float cardH = Mathf.Max(cardSize.y, textH + verticalPadding);
+            rt.sizeDelta = new Vector2(cardSize.x, cardH);
+            rt.anchoredPosition = new Vector2(topLeftMargin.x, yCursor);
+            yCursor -= (cardH + cardGap);
+
+            // 핀 상태 라벨/색.
+            if (card.pinLabel != null)
+            {
+                card.pinLabel.text = sel.pinned ? "●" : "○";
+                card.pinLabel.color = sel.pinned ? pinOnColor : pinOffColor;
+            }
+
+            // 버튼 listener 재바인딩 — pooled card 가 다른 selection 에 재사용되므로 매번 갱신.
+            string keyCopy = sel.key;
+            card.boundKey = keyCopy;
+            if (card.pinBtn != null)
+            {
+                card.pinBtn.onClick.RemoveAllListeners();
+                card.pinBtn.onClick.AddListener(() => { if (service != null) service.TogglePin(keyCopy); });
+            }
+            if (card.deleteBtn != null)
+            {
+                card.deleteBtn.onClick.RemoveAllListeners();
+                card.deleteBtn.onClick.AddListener(() => { if (service != null) service.RemoveSelection(keyCopy); });
+            }
         }
         for (int j = sels.Count; j < _cards.Count; j++)
             _cards[j].root.SetActive(false);
+
+        _nextStackY = sels.Count > 0 ? yCursor : -topLeftMargin.y;
     }
 
     // v2 스키마 카드 — 6 항목을 한글 라벨로 표시:
@@ -214,10 +326,9 @@ public class ARInfoPanel : MonoBehaviour
         yield return new WaitForSeconds(loadingDelay);
         if (_loading != null)
         {
-            // 카드 스택 위에 표시
-            int n = service != null ? service.Selections.Count : 0;
+            // 카드 스택 끝 (가변 높이 누적). Render 가 _nextStackY 를 갱신.
             ((RectTransform)_loading.transform).anchoredPosition =
-                new Vector2(0f, bottomMargin + n * (cardSize.y + cardGap));
+                new Vector2(topLeftMargin.x, _nextStackY);
             _loading.SetActive(true);
         }
         _pendingLoad = null;

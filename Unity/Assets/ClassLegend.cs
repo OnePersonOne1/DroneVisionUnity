@@ -26,14 +26,56 @@ public class ClassLegend : MonoBehaviour
     public Key toggleKey = Key.L;
 
     readonly List<TextMeshProUGUI> _texts = new List<TextMeshProUGUI>();
+    GameObject _canvasGo;
 
-    void Start() { BuildUI(); }
+    // 라이브 재빌드 트리거 — Inspector 에서 rowHeight/width/swatchSize/fontSize 등 변경 시 감지.
+    float _builtRowHeight, _builtSwatchSize, _builtFontSize, _builtWidth;
+    int _builtEntryCount = -1;
+    Color _builtBackColor;
+
+    void Start()
+    {
+        BuildUI();
+        SnapshotLayout();
+    }
+
+    void SnapshotLayout()
+    {
+        _builtRowHeight  = rowHeight;
+        _builtSwatchSize = swatchSize;
+        _builtFontSize   = fontSize;
+        _builtWidth      = width;
+        _builtBackColor  = backColor;
+        _builtEntryCount = DetectionClasses.All.Length;
+    }
+
+    bool LayoutChanged()
+    {
+        return !Mathf.Approximately(_builtRowHeight,  rowHeight)  ||
+               !Mathf.Approximately(_builtSwatchSize, swatchSize) ||
+               !Mathf.Approximately(_builtFontSize,   fontSize)   ||
+               !Mathf.Approximately(_builtWidth,      width)      ||
+               _builtBackColor != backColor                       ||
+               _builtEntryCount != DetectionClasses.All.Length;
+    }
+
+    /// 기존 캔버스를 파괴하고 BuildUI 재실행 — Inspector 라이브 편집 반영.
+    [ContextMenu("Rebuild Legend")]
+    public void Rebuild()
+    {
+        if (_canvasGo != null) Destroy(_canvasGo);
+        _canvasGo = null;
+        _texts.Clear();
+        BuildUI();
+        SnapshotLayout();
+    }
 
     void BuildUI()
     {
-        var canvasGo = new GameObject("Class Legend Canvas");
-        canvasGo.transform.SetParent(transform, false);
-        var canvas = canvasGo.AddComponent<Canvas>();
+        _canvasGo = new GameObject("Class Legend Canvas");
+        _canvasGo.transform.SetParent(transform, false);
+        var canvas = _canvasGo.AddComponent<Canvas>();
+        var canvasGo = _canvasGo;     // 아래 코드 호환.
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 90;
         var scaler = canvasGo.AddComponent<CanvasScaler>();
@@ -103,6 +145,12 @@ public class ClassLegend : MonoBehaviour
 
     void Update()
     {
+        // Inspector 라이브 편집 감지 → 재빌드.
+        if (LayoutChanged())
+        {
+            Rebuild();
+            return;
+        }
         if (!showCounts || _texts.Count == 0) return;
         var entries = DetectionClasses.All;
         var counts = new int[entries.Length];
