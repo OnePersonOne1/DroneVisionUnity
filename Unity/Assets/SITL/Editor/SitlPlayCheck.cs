@@ -96,6 +96,10 @@ namespace DroneSim.SITL.EditorTools
                     {
                         Debug.Log($"[PlayCheck] 반영 확인: rel_alt {_startRelAlt:F1}→{_mav.curRelAlt:F1} " +
                                   $"lla=({_mav.curLat:F6},{_mav.curLon:F6}) posUnity={_mav.PositionUnity}");
+                        // 자세/속도 텔레메트리도 흐르는지 확인 (기계제어 검증).
+                        Debug.Log($"[PlayCheck] 자세/속도: roll={_mav.rollDeg:F1}° pitch={_mav.pitchDeg:F1}° " +
+                                  $"yaw={_mav.yawDeg:F1}° vN={_mav.velN:F2} vE={_mav.velE:F2} vD={_mav.velD:F2} " +
+                                  $"groundSpeed={_mav.groundSpeed:F2} m/s  rotUnity={_mav.RotationUnity.eulerAngles}");
                         _mav.Land();
                         Finish(true, null);
                     }

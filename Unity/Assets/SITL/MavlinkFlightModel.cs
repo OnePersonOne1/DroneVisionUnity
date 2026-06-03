@@ -46,6 +46,14 @@ namespace DroneSim.SITL
         public string flightMode = "UNKNOWN";
         public double curLat, curLon, curAltAmsl, curRelAlt;
 
+        [Header("Debug — 자세/속도 (read-only, PX4 텔레메트리)")]
+        [Tooltip("NED Euler 각(deg) — PX4 attitude_euler. 드론 메시 회전(RotationUnity)에 반영됨.")]
+        public float rollDeg, pitchDeg, yawDeg;
+        [Tooltip("NED 속도(m/s).")]
+        public float velN, velE, velD;
+        [Tooltip("수평 대지속도(m/s).")]
+        public float groundSpeed;
+
         // ── 텔레메트리 wire 포맷 (px4_bridge.py 와 1:1) ──
         [System.Serializable]
         class TelemetryMsg
@@ -184,6 +192,9 @@ namespace DroneSim.SITL
             hasTelemetry = true;
             armed = m.armed; inAir = m.in_air; flightMode = m.flight_mode;
             curLat = m.lat; curLon = m.lon; curAltAmsl = m.alt_amsl; curRelAlt = m.rel_alt;
+            rollDeg = (float)m.roll; pitchDeg = (float)m.pitch; yawDeg = (float)m.yaw;
+            velN = (float)m.vn; velE = (float)m.ve; velD = (float)m.vd;
+            groundSpeed = Mathf.Sqrt(velN * velN + velE * velE);
             _homeAmsl = m.alt_amsl - m.rel_alt;
 
             if (!_calibReady) return;   // 캘리브 전엔 위치 미갱신.
