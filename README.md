@@ -153,6 +153,7 @@ Cube (지도 시점 / GPS HUD):
 | Z | **SimClock 패널** 토글 — 시간대 프리셋(08/12/18/02) + 수동 시:분 |
 | F12 / Shift+F12 | **Briefing 패널** 토글 / 크기 리셋 |
 | F11 | 수동 즉시 /assess 호출 (개발용) |
+| `[` | FP(Display 1) ↔ Sensor(Display 4) 카메라 교환 — 3 모니터 환경용 |
 
 모의 화재 한 건이라도 추가되면 즉시 /assess 호출 → BriefingPanel 에 risk · 시간대 · top-5 119안전센터 · 룰 기반 권장 차량 · 한국어 브리핑 표시. RF-DETR 검출의 `fire_region`/`smoke_region` 마커도 자동 합산 (FireSim 마커와 동일하게 평가됨).
 

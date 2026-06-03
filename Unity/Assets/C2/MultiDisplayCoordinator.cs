@@ -32,6 +32,16 @@ namespace DroneSim.C2
         [Tooltip("Strategic Camera 가 사용할 인덱스 — StrategicViewBootstrap 에도 같은 값.")]
         public int strategicDisplayIndex = 2;
 
+        [Header("Display 4 (Sensor View) 채널 스왑")]
+        [Tooltip("센서 시점 카메라. 비우면 SensorViewMode 의 카메라 자동 검색.")]
+        public Camera sensorCamera;
+        [Tooltip("센서 카메라의 기본 디스플레이 인덱스 (보통 3 = Display 4).")]
+        public int sensorDisplayIndex = 3;
+        [Tooltip("FP(보통 Display 1) ↔ Sensor 카메라 교환 키. " +
+                 "3 모니터 환경에서 Display 4 가 안 보일 때 1번 자리에 끼워넣기. " +
+                 "Key.None 이면 비활성. 다시 누르면 원위치.")]
+        public Key swapFpSensorKey = Key.LeftBracket;
+
         [Header("동작")]
         [Tooltip("시작 시 추가 디스플레이 Display.Activate 호출. Editor 에서 한 번 호출 후 되돌릴 수 없음에 주의.")]
         public bool activateExtraDisplays = true;
@@ -77,6 +87,13 @@ namespace DroneSim.C2
                       $"fpFollowTarget={(fpFollowTarget!=null?fpFollowTarget.name:"null")}");
         }
 
+        void Update()
+        {
+            var kb = Keyboard.current;
+            if (kb != null && swapFpSensorKey != Key.None && kb[swapFpSensorKey].wasPressedThisFrame)
+                SwapFpSensor();
+        }
+
         void LateUpdate()
         {
             if (forceCamerasAlwaysOn) EnableBoth();
@@ -87,6 +104,45 @@ namespace DroneSim.C2
                 fpCamera.transform.position = t.position + t.forward * fpForwardOffset + t.up * fpUpOffset;
                 fpCamera.transform.rotation = t.rotation;
             }
+        }
+
+        /// <summary>FP 카메라와 Sensor 카메라의 targetDisplay 를 교환.
+        /// 3 모니터 환경에서 Display 4 가 안 보일 때 1번 자리에 임시로 끼워넣기.
+        /// 같은 키 다시 누르면 원위치.</summary>
+        public void SwapFpSensor()
+        {
+            // Sensor 카메라 자동 검색 — 인스펙터에 안 채워졌으면.
+            if (sensorCamera == null)
+            {
+                foreach (var c in Camera.allCameras)
+                {
+                    if (c == null || c == fpCamera || c == mainCamera) continue;
+                    if (c.targetTexture != null) continue;
+                    if (c.targetDisplay == sensorDisplayIndex)
+                    {
+                        sensorCamera = c; break;
+                    }
+                }
+            }
+            if (sensorCamera == null)
+            {
+                Debug.LogWarning($"[MultiDisplay] Sensor 카메라 자동 검색 실패 " +
+                                 $"(targetDisplay={sensorDisplayIndex} 없음). " +
+                                 $"인스펙터의 sensorCamera 슬롯에 직접 드래그하세요.");
+                return;
+            }
+            if (fpCamera == null)
+            {
+                Debug.LogWarning("[MultiDisplay] fpCamera 없음.");
+                return;
+            }
+            int fpPrev = fpDisplayIndex;
+            int senPrev = sensorCamera.targetDisplay;
+            fpDisplayIndex = senPrev;             // LateUpdate 의 ApplyTargetDisplays 가 자동 반영 X — 명시 적용.
+            sensorCamera.targetDisplay = fpPrev;
+            fpCamera.targetDisplay = fpDisplayIndex;
+            Debug.Log($"[MultiDisplay] FP↔Sensor swap: FP→Display {fpDisplayIndex + 1}, " +
+                      $"Sensor→Display {sensorCamera.targetDisplay + 1}");
         }
 
         void ResolveRefs()

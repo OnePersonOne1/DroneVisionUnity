@@ -397,6 +397,14 @@ Hierarchy 에서 빈 GameObject 5개 만들어 (또는 1개에 모아) `Add Comp
 
 Lifetime: `Fire Marker Lifetime` / `Smoke Marker Lifetime` 둘 다 **기본 0 (영구)** — 화재 추적 위해 사라지지 않음. `Marker Lifetime` 은 human/vehicle 같은 그 외 클래스에만 적용 (`ProjectionUdpReceiver` 기본 2s, `Replay`/`FireSim` 기본 0s). 양수로 바꾸면 자동 소멸.
 
+### 7-6. 멀티 디스플레이 + 모니터가 부족할 때
+
+Build (실행파일) 시 `Display 1` → 1번 모니터, `Display 2` → 2번, `Display 3` → 3번 자동 분배. 모니터가 4개 미만이면 `Display 4` (Sensor View) 가 안 보임.
+
+해결: **`[` (LeftBracket) 키 = FP ↔ Sensor 채널 swap**. 누르면 1번 모니터의 FP 카메라가 Display 4 로 가고 Sensor 카메라가 1번 자리로 들어옴. 다시 누르면 원위치. `MultiDisplayCoordinator.swapFpSensorKey` 에서 키 변경 가능.
+
+> 개발 중에는 Build 안 하고 Editor ▶ Play 가 답. Game view 상단 드롭다운으로 `Display 1/2/3/4` 직접 전환.
+
 **동작 확인**:
 
 1. Play 모드 진입.
