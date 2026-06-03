@@ -14,7 +14,7 @@ services:
     build:
       context: ./Python/sitl
       dockerfile: Dockerfile.px4sitl
-    image: dronevision/px4-sitl:v1.16-harmonic
+    image: hanmyeongil/px4-sitl:v1.16-harmonic
     network_mode: host
     runtime: nvidia            # GUI 렌더 시 GPU 가속 (헤드리스에선 무시돼도 무방).
     shm_size: "2gb"
@@ -38,7 +38,7 @@ services:
   # 기동:  docker compose -f docker-compose.sitl.yml up px4_bridge
   px4_bridge:
     container_name: px4_bridge
-    image: dronevision/px4-sitl:v1.16-harmonic   # px4_sitl 빌드 산출물 재사용
+    image: hanmyeongil/px4-sitl:v1.16-harmonic   # px4_sitl 빌드 산출물 재사용
     network_mode: host                           # PX4 udp:14540 + Unity 127.0.0.1 접근
     depends_on:
       - px4_sitl
