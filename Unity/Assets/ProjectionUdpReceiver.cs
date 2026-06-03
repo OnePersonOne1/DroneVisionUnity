@@ -73,10 +73,17 @@ public class ProjectionUdpReceiver : MonoBehaviour
     public bool passThroughEnclosingBuilding = true;
 
     [Header("Markers")]
-    [Tooltip("0 = never destroy. >0 = auto destroy after seconds.")]
+    [Tooltip("기타 클래스(human/vehicle 등) 마커 lifetime — 0 = 영구, >0 = 자동 소멸 (초).")]
     public float markerLifetime = 2f;
+    [Tooltip("fire 마커 lifetime — 0 = 영구 (기본). 화재 상황 추적을 위해 사라지지 않는 게 보통.")]
+    public float fireMarkerLifetime = 0f;
+    [Tooltip("smoke 마커 lifetime — 0 = 영구 (기본).")]
+    public float smokeMarkerLifetime = 0f;
     [Tooltip("폴백 마커 기본 굵기/배율(세로 막대). 멀리서도 보이도록 키워라.")]
     public float markerScale = 3f;
+    [Tooltip("fire = Cube (직사각형, scale fireBoxSize×3), smoke = 반투명 회색 Cylinder. " +
+             "그 외 클래스는 markerScale 의 Capsule.")]
+    public DetectionMarkerVisual.Settings shapeSettings = DetectionMarkerVisual.Settings.Default;
 
     [Header("Debug 시각화 (광선·GPS 원점, 토글 가능)")]
     [Tooltip("켜면 검출별로 GPS 원점 구 + 광선 LineRenderer 가 런타임 Game 뷰에 표시됨.")]
@@ -406,8 +413,8 @@ public class ProjectionUdpReceiver : MonoBehaviour
         }
     }
 
-    /// 세로 막대 + 발광 머티리얼로 멀리서도 보이는 마커.
-    /// markerPrefab 이 있으면 그걸 Instantiate, 없으면 런타임 생성.
+    /// 클래스별 외관 마커 (DetectionMarkerVisual 헬퍼 사용).
+    /// markerPrefab 이 있으면 그걸 Instantiate, 없으면 클래스별 primitive (fire=Cube · smoke=반투명 Cylinder · 그 외=Capsule).
     void SpawnMarker(Vector3 pos, string className, float conf, Color color)
     {
         GameObject go;
@@ -418,23 +425,28 @@ public class ProjectionUdpReceiver : MonoBehaviour
         }
         else
         {
-            // 폴백: 빈 root(피벗=바닥) + Capsule 자식
             go = new GameObject("DetectionMarker");
             go.transform.position = pos;
-            var vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            vis.name = "Visual";
-            vis.transform.SetParent(go.transform, false);
-            float s = markerScale;
-            vis.transform.localScale    = new Vector3(s, s * 5f, s);             // 폭 s × 높이 ~10s m
-            vis.transform.localPosition = new Vector3(0f, vis.transform.localScale.y, 0f); // 피벗=바닥
-            var c = vis.GetComponent<Collider>(); if (c != null) Destroy(c);
-            var r = vis.GetComponent<Renderer>(); if (r != null) TintRenderer(r, color);
+            var st = shapeSettings;
+            st.capsuleScale = markerScale;
+            DetectionMarkerVisual.BuildForClass(go.transform, className, color, st);
         }
         go.name = $"{className}_{conf:F2}";
         go.AddComponent<DetectionMarker>().Init(className, color);   // 미니맵/범주표 추적
         go.transform.SetParent(GetMarkerRoot(), true);
-        if (markerLifetime > 0f) Destroy(go, markerLifetime);
+        float life = LifetimeFor(className);
+        if (life > 0f) Destroy(go, life);
         markerSpawnCount++;
+    }
+
+    /// <summary>클래스명 → 적용할 자동 소멸 시간(초). 0 = 영구.</summary>
+    float LifetimeFor(string className)
+    {
+        if (string.IsNullOrEmpty(className)) return markerLifetime;
+        string cn = className.ToLower();
+        if (cn.Contains("fire"))  return fireMarkerLifetime;
+        if (cn.Contains("smoke")) return smokeMarkerLifetime;
+        return markerLifetime;
     }
 
     /// 광선 + GPS 원점을 런타임 Game 뷰에 표시 (showDebugVisuals 토글).

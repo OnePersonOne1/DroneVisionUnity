@@ -59,9 +59,15 @@ public class ProjectionReplay : MonoBehaviour
     public int maxFrames = 0;
 
     [Header("Markers")]
-    [Tooltip("0 = never destroy")]
+    [Tooltip("기타 클래스 lifetime (초, 0 = 영구).")]
     public float markerLifetime = 0f;
+    [Tooltip("fire 마커 lifetime — 0 = 영구 (기본).")]
+    public float fireMarkerLifetime = 0f;
+    [Tooltip("smoke 마커 lifetime — 0 = 영구 (기본).")]
+    public float smokeMarkerLifetime = 0f;
     public float markerScale = 3f;
+    [Tooltip("fire = Cube · smoke = 반투명 Cylinder · 그 외 = Capsule.")]
+    public DetectionMarkerVisual.Settings shapeSettings = DetectionMarkerVisual.Settings.Default;
 
     [Header("Debug 시각화 (광선·GPS 원점)")]
     public bool showDebugVisuals = true;
@@ -426,20 +432,25 @@ public class ProjectionReplay : MonoBehaviour
         {
             go = new GameObject("DetectionMarker");
             go.transform.position = pos;
-            var vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            vis.name = "Visual";
-            vis.transform.SetParent(go.transform, false);
-            float s = markerScale;
-            vis.transform.localScale    = new Vector3(s, s * 5f, s);
-            vis.transform.localPosition = new Vector3(0f, vis.transform.localScale.y, 0f);
-            var c = vis.GetComponent<Collider>(); if (c != null) Destroy(c);
-            var r = vis.GetComponent<Renderer>(); if (r != null) TintRenderer(r, color);
+            var st = shapeSettings;
+            st.capsuleScale = markerScale;
+            DetectionMarkerVisual.BuildForClass(go.transform, className, color, st);
         }
         go.name = $"{className}_{conf:F2}";
         go.AddComponent<DetectionMarker>().Init(className, color);   // 미니맵/범주표 추적
         go.transform.SetParent(GetMarkerRoot(), true);
-        if (markerLifetime > 0f) Destroy(go, markerLifetime);
+        float life = LifetimeFor(className);
+        if (life > 0f) Destroy(go, life);
         markerSpawnCount++;
+    }
+
+    float LifetimeFor(string className)
+    {
+        if (string.IsNullOrEmpty(className)) return markerLifetime;
+        string cn = className.ToLower();
+        if (cn.Contains("fire"))  return fireMarkerLifetime;
+        if (cn.Contains("smoke")) return smokeMarkerLifetime;
+        return markerLifetime;
     }
 
     void SpawnDebugVisuals(Vector3 origin, Vector3 dir, Color color)
