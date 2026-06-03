@@ -23,7 +23,8 @@ PX4_TARGET="${PX4_TARGET:-gz_x500}"
 
 echo "[sitl] PX4 v1.16 SITL + Gazebo Harmonic"
 echo "[sitl] target=${PX4_TARGET} home=(${PX4_HOME_LAT}, ${PX4_HOME_LON}, ${PX4_HOME_ALT}m) HEADLESS=${HEADLESS}"
-echo "[sitl] MAVLink external API on udp:14540 (MAVSDK/브리지 접속), GCS on udp:14550"
+echo "[sitl] MAVLink external API on udp:14540 (MAVSDK/브리지 접속), GCS on udp:14550 (QGroundControl 자동 발견)"
+echo "[sitl] (이미지 빌드 시 px4-rc.mavlink 의 udp_gcs_port_local 가 14550 으로 patch 됨)"
 
 cd /opt/PX4-Autopilot
 # DONT_RUN 미설정 → 빌드 산출물로 SITL 기동. 이미 빌드돼 있으면 즉시 실행.

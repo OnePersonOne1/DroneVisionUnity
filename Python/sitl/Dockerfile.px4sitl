@@ -26,6 +26,13 @@ WORKDIR /opt/PX4-Autopilot
 # 공통 의존성 + Gazebo Harmonic 설치 (--no-nuttx: Pixhawk 펌웨어 툴체인 생략).
 RUN bash ./Tools/setup/ubuntu.sh --no-nuttx
 
+# PX4 기본 GCS 포트(18570+instance) → 14550+instance 로 변경.
+# QGroundControl 의 기본 자동발견 포트가 14550 이라 GCS 가 즉시 잡힌다.
+# (px4-rc.mavlink 의 udp_gcs_port_local 한 줄만 치환 — 다른 라우팅은 그대로.)
+RUN sed -i 's|udp_gcs_port_local=$((18570+px4_instance))|udp_gcs_port_local=$((14550+px4_instance))|' \
+        /opt/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/px4-rc.mavlink \
+    && grep -q "14550" /opt/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/px4-rc.mavlink
+
 # SITL 펌웨어 빌드 — **빌드 전용** 타깃. `make px4_sitl gz_x500` 형태는 빌드 후 시뮬을
 # 곧장 기동해버려(빌드 RUN 레이어가 pxh> 프롬프트에서 멈춤) Docker 빌드에 부적합.
 # `px4_sitl_default` 는 바이너리(build/px4_sitl_default/bin/px4)만 컴파일하고 기동 안 함.
