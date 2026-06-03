@@ -426,14 +426,10 @@ public class ProjectionReplay : MonoBehaviour
         {
             go = new GameObject("DetectionMarker");
             go.transform.position = pos;
-            var vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            vis.name = "Visual";
-            vis.transform.SetParent(go.transform, false);
-            float s = markerScale;
-            vis.transform.localScale    = new Vector3(s, s * 5f, s);
-            vis.transform.localPosition = new Vector3(0f, vis.transform.localScale.y, 0f);
-            var c = vis.GetComponent<Collider>(); if (c != null) Destroy(c);
-            var r = vis.GetComponent<Renderer>(); if (r != null) TintRenderer(r, color);
+            // 클래스별 모양: fire=Cube · smoke=반투명 Cylinder · 그 외=Capsule.
+            var st = DetectionMarkerVisual.Settings.Default;
+            st.capsuleScale = markerScale;
+            DetectionMarkerVisual.BuildForClass(go.transform, className, color, st);
         }
         go.name = $"{className}_{conf:F2}";
         go.AddComponent<DetectionMarker>().Init(className, color);   // 미니맵/범주표 추적

@@ -52,11 +52,13 @@ namespace DroneSim.C2
         public LayerMask groundMask = ~0;
         public float maxRayDistance = 2000000f;
 
-        [Header("마커 외관 (ProjectionUdpReceiver 와 동일 패턴)")]
-        [Tooltip("prefab 슬롯이 있으면 사용, 없으면 capsule fallback.")]
+        [Header("마커 외관")]
+        [Tooltip("prefab 슬롯이 있으면 사용, 없으면 클래스별 primitive (fire=Cube · smoke=Cylinder · 그 외=Capsule).")]
         public GameObject markerPrefab;
-        [Tooltip("폭 s × 높이 ~10s m (맵 ×100000 스케일 가정).")]
+        [Tooltip("그 외 클래스 capsule fallback 폭 (높이 ×5). fire/smoke 는 아래 shapeSettings 사용.")]
         public float markerScale = 3f;
+        [Tooltip("fire = Cube (직사각형, scale fireBoxSize×3), smoke = 반투명 회색 Cylinder.")]
+        public DetectionMarkerVisual.Settings shapeSettings = DetectionMarkerVisual.Settings.Default;
 
         [Header("클래스별 lifetime (초, 0 또는 음수 = 영구)")]
         [Tooltip("fire 마커 자동 소멸 시간. 기본 0 = 영구 — 화재는 사용자가 명시 제거할 때까지 유지.")]
@@ -178,14 +180,11 @@ namespace DroneSim.C2
             {
                 go = new GameObject($"SimFire_{className}");
                 go.transform.position = pos;
-                var vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                vis.name = "Visual";
-                vis.transform.SetParent(go.transform, false);
-                float s = markerScale;
-                vis.transform.localScale = new Vector3(s, s * 5f, s);
-                vis.transform.localPosition = new Vector3(0f, vis.transform.localScale.y, 0f);
-                var col = vis.GetComponent<Collider>(); if (col != null) Destroy(col);
-                var rend = vis.GetComponent<Renderer>(); if (rend != null) TintRenderer(rend, color);
+                // 클래스별 모양: fire=Cube · smoke=반투명 Cylinder · 그 외=Capsule.
+                // markerScale 은 capsule fallback 폭에만 적용.
+                var st = shapeSettings;
+                st.capsuleScale = markerScale;
+                DetectionMarkerVisual.BuildForClass(go.transform, className, color, st);
             }
             go.AddComponent<DetectionMarker>().Init(className, color);
             float life = LifetimeFor(className);

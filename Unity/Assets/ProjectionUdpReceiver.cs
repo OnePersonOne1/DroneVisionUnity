@@ -406,8 +406,8 @@ public class ProjectionUdpReceiver : MonoBehaviour
         }
     }
 
-    /// 세로 막대 + 발광 머티리얼로 멀리서도 보이는 마커.
-    /// markerPrefab 이 있으면 그걸 Instantiate, 없으면 런타임 생성.
+    /// 클래스별 외관 마커 (DetectionMarkerVisual 헬퍼 사용).
+    /// markerPrefab 이 있으면 그걸 Instantiate, 없으면 클래스별 primitive (fire=Cube · smoke=반투명 Cylinder · 그 외=Capsule).
     void SpawnMarker(Vector3 pos, string className, float conf, Color color)
     {
         GameObject go;
@@ -418,17 +418,12 @@ public class ProjectionUdpReceiver : MonoBehaviour
         }
         else
         {
-            // 폴백: 빈 root(피벗=바닥) + Capsule 자식
             go = new GameObject("DetectionMarker");
             go.transform.position = pos;
-            var vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            vis.name = "Visual";
-            vis.transform.SetParent(go.transform, false);
-            float s = markerScale;
-            vis.transform.localScale    = new Vector3(s, s * 5f, s);             // 폭 s × 높이 ~10s m
-            vis.transform.localPosition = new Vector3(0f, vis.transform.localScale.y, 0f); // 피벗=바닥
-            var c = vis.GetComponent<Collider>(); if (c != null) Destroy(c);
-            var r = vis.GetComponent<Renderer>(); if (r != null) TintRenderer(r, color);
+            // capsule fallback 폭은 기존 markerScale 사용, fire/smoke 는 DetectionMarkerVisual.Settings.Default.
+            var st = DetectionMarkerVisual.Settings.Default;
+            st.capsuleScale = markerScale;
+            DetectionMarkerVisual.BuildForClass(go.transform, className, color, st);
         }
         go.name = $"{className}_{conf:F2}";
         go.AddComponent<DetectionMarker>().Init(className, color);   // 미니맵/범주표 추적
