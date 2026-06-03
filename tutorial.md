@@ -381,6 +381,22 @@ INFO:     Uvicorn running on http://127.0.0.1:8077
 
 Hierarchy 에서 빈 GameObject 5개 만들어 (또는 1개에 모아) `Add Component` 로 각각 추가. 인스펙터 슬롯은 비워두면 자동으로 같은 씬의 다른 컴포넌트를 찾는다.
 
+**마커 모양 / 크기 / 영구 옵션** — 세 컴포넌트가 같은 헬퍼(`DetectionMarkerVisual`) 를 공유. 각자 인스펙터에서 따로 조정 가능:
+
+| 컴포넌트 | 어떤 마커 | 인스펙터 위치 |
+|---|---|---|
+| `FireSim` | `;`/`'` 모의 화재 | `Shape Settings` + `Fire/Smoke/Default Marker Lifetime` |
+| `ProjectionUdpReceiver` | 라이브 UDP 검출 | `Shape Settings` + `Fire/Smoke/Marker Lifetime` |
+| `ProjectionReplay` | CSV 재생 검출 | `Shape Settings` + `Fire/Smoke/Marker Lifetime` |
+
+`Shape Settings` 안 필드:
+- **Fire Box Size** = 화재 큐브 한 변 (기본 10).
+- **Smoke Radius / Smoke Height** = 연기 원기둥 (기본 4 / 14, 반투명 회색).
+- **Smoke Color** = 연기 색·알파 (기본 (0.5,0.5,0.5,0.45)).
+- **Capsule Scale** = 그 외 클래스 캡슐 폭 (높이 ×5).
+
+Lifetime: `Fire Marker Lifetime` / `Smoke Marker Lifetime` 둘 다 **기본 0 (영구)** — 화재 추적 위해 사라지지 않음. `Marker Lifetime` 은 human/vehicle 같은 그 외 클래스에만 적용 (`ProjectionUdpReceiver` 기본 2s, `Replay`/`FireSim` 기본 0s). 양수로 바꾸면 자동 소멸.
+
 **동작 확인**:
 
 1. Play 모드 진입.

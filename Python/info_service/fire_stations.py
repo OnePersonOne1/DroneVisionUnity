@@ -97,10 +97,15 @@ class FireStations:
             raw = (r.get("배치차량종류") or "").strip()
             vlist = [_norm_vehicle(v.strip()) for v in raw.split(",") if v.strip()]
             vlist = [v for v in vlist if v]
+            # 이름 fallback — CSV 일부 row 가 본부(소방서) 자체라 센터명이 비어있음.
+            # 그 경우 상위본부명을 그대로 사용 (예: '인천송도소방서').
+            raw_name = (r.get("센터명") or "").strip()
+            parent_name = (r.get("상위본부명") or "").strip()
+            display_name = raw_name or (parent_name + " 본부" if parent_name else "(이름미상)")
             self.records.append({
                 "code":           r.get("기관코드"),
-                "parent":         r.get("상위본부명"),
-                "name":           r.get("센터명"),
+                "parent":         parent_name or None,
+                "name":           display_name,
                 "kind":           r.get("센터구분"),
                 "road_address":   r.get("도로명주소"),
                 "jibun_address":  r.get("지번주소"),
