@@ -121,19 +121,22 @@ Cube (지도 시점 / GPS HUD):
 | B / N / H / X | 건물 정보 조회 / dwell 모드 / 하이라이트 / 선택 해제 |
 | P | GPS HUD 토글 |
 
-드론 시뮬레이션 (`drone_sim_obj_n`):
+드론 시뮬레이션 (`drone_sim_obj_n`, n = 1, 2, 3, …):
 
 | 입력 | 동작 |
 |---|---|
 | `` ` `` | 드론 추가 spawn |
 | F10 | 비행 모드 토글 (HighFidelity ↔ Arcade) |
-| LMB 클릭 (드론 마커) | 단일 선택 (Shift = 추가) |
-| LMB 드래그 (전략 뷰) | 박스 셀렉트 |
-| LMB 단일 클릭 (전략 뷰) | 선택 해제 → 전체 대상 |
-| Ctrl + LMB 드래그 | 마우스 궤적 → SetPath |
+| LMB 클릭 (드론 마커) | 단일 선택 (Shift = 추가/제거) |
+| LMB 드래그 (전략 뷰 또는 미니맵) | 박스 셀렉트 |
+| LMB 단일 클릭 (전략 뷰 또는 미니맵) | 선택 해제 → 전체 대상 |
+| Ctrl + LMB 드래그 (전략 뷰 또는 미니맵) | 마우스 궤적 → SetPath |
 | RMB | 선택군 SetWaypoint (Shift = QueueWaypoint) |
+| **ESC** | 선택 해제 (전역, 어느 디스플레이에서나) |
+| Space | 전체 드론 정지 (큐 비움 + hover) |
 | 화살표 / MMB 드래그 / 휠 | 전략 카메라 팬·줌 |
-| Home | 전략 카메라 Cube 위로 재중심 |
+| Home / Backspace | 전략 카메라 Cube 위로 재중심 |
+| M / Shift+M | 미니맵 토글 / 기본 크기로 리셋 |
 
 전체 키 매핑은 [`조작법.md`](조작법.md) 참조.
 
@@ -150,8 +153,9 @@ Cube (지도 시점 / GPS HUD):
 
 ## 추가 시각화 (월드 공간)
 
-- **드론 nametag** (`DroneNameTagManager`): 각 드론 머리 위 TextMeshPro 3D 라벨 `{N}\nAGL: {m} m`, 카메라 빌보드. 모든 디스플레이 공통.
-- **웨이포인트 시각화** (`WaypointWorldVisualizer`): 현재 타겟·큐 wp 에 **반투명 무한 높이 원기둥** + 드론→타겟→큐 경로 라인. URP 투명 머티리얼 자동 생성. 선택 wp 는 노랑, 비선택은 시안.
+- **드론 nametag** (`DroneNameTagManager`): 각 드론 머리 위 TextMeshPro 3D 라벨 `{N}\nAGL: {m} m` (N = 1, 2, 3, …), 카메라 빌보드. 모든 디스플레이 공통.
+- **웨이포인트 시각화** (`WaypointWorldVisualizer`): 현재 타겟·큐 wp 에 **반투명 무한 높이 원기둥** + 드론→타겟→큐 경로 라인. 원기둥은 선택 노랑·비선택 시안. 추가로 **지면 raycast 한 지점에 큰 반투명 디스크** (`showGroundDiscs`, 선택 노랑·비선택 주황) — RTS 스타일 도착 마커. URP 투명 머티리얼 자동 생성.
+- **선택 드론 강조** (`SelectedDroneHighlighter`): 명시 선택된 드론 (`selectedDroneIds` 에 들어있는 ID) 마다 **불투명 초록 wireframe 큐브** 를 두름. 1인칭/3인칭/전략 모든 카메라에서 가시. 선택 0개(전체 명령 모드) 일 때는 표시 X. 씬에 없으면 자동 부트스트랩(`RuntimeInitializeOnLoadMethod`).
 - **AGL(지상고도)** (`GroundAgl`): 드론 위치에서 아래 방향 `Physics.Raycast`(terrain single-side 시 backface 폴백)로 지면까지 거리 / `unityUnitsPerMeter`. 라벨·전략 뷰 모두 동일 소스.
 
 ## 명령 고도 프리셋 (전략 뷰)
@@ -161,7 +165,9 @@ Cube (지도 시점 / GPS HUD):
 - `PgUp` / `PgDn` : ±5 m (`PgDn` 은 0 하한)
 - `End` : 0 (= 지면 그대로)
 - `F1`–`F5` : 10 / 30 / 50 / 100 / 200 m 프리셋 (숫자 `1`–`9` 는 RTS 컨트롤 그룹용으로 비웠음)
-- `Ctrl + 1`–`9` 그룹 저장, `1`–`9` 단독 그룹 호출 (StarCraft 부대지정 방식)
+- `Ctrl + 1`–`9` (또는 `Alt + 1`–`9`) 그룹 저장, `1`–`9` 단독 그룹 호출 (StarCraft 부대지정 방식). Editor 에서 Ctrl+digit 가 윈도우 단축키로 가로채면 Alt 모디파이어 사용.
+- `Space` : 전체 드론 정지 (큐 비움 + 현 자리 hover, RTS 의 Stop=S 대응).
+- `ESC` : 선택 해제 → 전체 드론 대상 모드 복귀 (어느 디스플레이에서나).
 
 ## HUD 런타임 튜너
 
