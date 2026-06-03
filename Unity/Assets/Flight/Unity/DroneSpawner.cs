@@ -91,7 +91,6 @@ namespace DroneSim.Flight.UnityAdapter
 
         public DroneAgent Spawn()
         {
-            string id = DroneRegistry.NextDefaultId();
             // ENU 5m 이동 = Unity 5 * unityUnitsPerMeter 유닛.
             float uupm = config != null && config.unityUnitsPerMeter > 0f
                 ? config.unityUnitsPerMeter
@@ -106,28 +105,29 @@ namespace DroneSim.Flight.UnityAdapter
                 ? spawnAnchor.position + spawnAnchor.forward * (distanceFromAnchor * uupm)
                 : new Vector3(0f, 5f * uupm, 0f);
 
-            var root = new GameObject(id);
+            // GO 이름은 임시로 "Drone" — AddComponent<DroneAgent>() 의 Awake → Register 가
+            // 빈 agentId 를 보고 NextDefaultId 로 채워주면 그 ID 로 GO 이름 갱신.
+            var root = new GameObject("Drone");
             root.transform.position = pos;
 
             float vs = (config != null ? config.visualScale : visualScale) * uupm;
             BuildVisual(root.transform, vs);
 
-            // 컴포넌트 부착: HF + Arcade + Agent.
             var hf = root.AddComponent<HighFidelityFlightModel>();
             hf.config = config;
             var arc = root.AddComponent<ArcadeFlightModel>();
             arc.gravity = config != null ? config.gravity : 9.81f;
-            var agent = root.AddComponent<DroneAgent>();   // ← Awake 가 default agentId 로 Registry 등록
-            // Awake 등록 키와 우리가 원하는 id 가 어긋날 수 있어 unregister → 정확한 id → re-register.
-            DroneRegistry.Unregister(agent);
-            agent.agentId = id;
-            DroneRegistry.Register(agent);
+            // DroneAgent.agentId 디폴트 = "" → Awake → Register → NextDefaultId 1회 호출로 id 부여.
+            // 옛 방식(pre-NextDefaultId → Unregister/re-Register) 은 NextDefaultId 가 두 번씩 불려
+            // 0, 1, 3, 5, 7 처럼 짝수 시리얼이 건너뛰는 버그가 있었음.
+            var agent = root.AddComponent<DroneAgent>();
             agent.highFidelity = hf;
             agent.arcade = arc;
+            root.name = agent.agentId;
 
             ApplyInitialMode(hf);
 
-            Debug.Log($"[DroneSpawner] '{id}' spawn @ {pos} mode={initialMode}");
+            Debug.Log($"[DroneSpawner] '{agent.agentId}' spawn @ {pos} mode={initialMode}");
             return agent;
         }
 

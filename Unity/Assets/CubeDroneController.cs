@@ -65,7 +65,10 @@ public class CubeDroneController : MonoBehaviour
         if (enableMouseLook)
         {
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.isPressed)
+            // UGUI 위 클릭(미니맵 드론 선택 등)은 큐브 회전에서 제외.
+            bool overUI = UnityEngine.EventSystems.EventSystem.current != null &&
+                          UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+            if (mouse != null && mouse.leftButton.isPressed && !overUI)
             {
                 Vector2 md = mouse.delta.ReadValue();
                 yawDelta   += md.x * mouseSensitivity * (invertYaw ? -1f : 1f);

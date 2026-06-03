@@ -12,7 +12,7 @@ namespace DroneSim.Flight.UnityAdapter
     public class FlightTestConsole : MonoBehaviour
     {
         [Header("대상")]
-        public string droneId = "drone_sim_obj_0";
+        public string droneId = "drone_sim_obj_1";
 
         [Header("입력 좌표 (ENU m, spawn 점 기준)")]
         public Vector3 target = new Vector3(10f, 0f, 5f);

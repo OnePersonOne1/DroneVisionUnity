@@ -509,6 +509,96 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &173745900
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 173745903}
+  - component: {fileID: 173745902}
+  - component: {fileID: 173745901}
+  m_Layer: 0
+  m_Name: Minimap
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &173745901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 173745900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fdb71d2353210a9a820a846dbefc8b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DroneSim.C2.MinimapCommandInput
+  targetDroneId: drone_sim_obj_0
+  targetMarkerColor: {r: 0.4, g: 1, b: 0.4, a: 0.95}
+  targetMarkerRadius: 7
+  queueDotColor: {r: 0.4, g: 1, b: 0.4, a: 0.55}
+  queueDotRadius: 4
+--- !u!114 &173745902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 173745900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e80fdeabdfcfecc41ac5afc8924cc3f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Minimap
+  drone: {fileID: 0}
+  viewRadius: 3600
+  cameraHeight: 2000
+  farClip: 12000
+  renderLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  backgroundColor: {r: 0.1, g: 0.12, b: 0.15, a: 1}
+  textureSize: 256
+  panelSize: {x: 260, y: 260}
+  panelMargin: {x: 16, y: 16}
+  initialCorner: 0
+  markerColor: {r: 1, g: 0, b: 0, a: 1}
+  markerRadius: 6
+  showFov: 1
+  fovColor: {r: 1, g: 0.95, b: 0.3, a: 0.35}
+  fovMaxRangeMeters: 0
+  fovAngleDeg: 84
+  fovAspect: 1.7777
+  invertFovDirection: 0
+  infoService: {fileID: 0}
+  selMarkerRadius: 5
+  showDetections: 1
+  detMarkerRadius: 4
+  enableWheelZoom: 1
+  zoomFactor: 1.2
+  minViewRadius: 30
+  maxViewRadius: 100000
+--- !u!4 &173745903
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 173745900}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -27038.26, y: 20859.53, z: -7854.332}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &219795293
 GameObject:
   m_ObjectHideFlags: 0
@@ -2462,6 +2552,8 @@ MonoBehaviour:
   backColor: {r: 0, g: 0, b: 0, a: 0.55}
   showCounts: 1
   koreanFont: {fileID: 0}
+  initialCorner: 1
+  toggleKey: 26
 --- !u!4 &1949326092
 Transform:
   m_ObjectHideFlags: 0
@@ -2647,3 +2739,4 @@ SceneRoots:
   - {fileID: 1512775915}
   - {fileID: 1988874443}
   - {fileID: 1672263898}
+  - {fileID: 173745903}

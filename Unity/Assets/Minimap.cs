@@ -83,6 +83,9 @@ public class Minimap : MonoBehaviour
         if (infoService != null) infoService.SelectionsChanged += OnSelections;
         if (drone == null)
             Debug.LogWarning("[Minimap] 드론 transform 없음 — drone 을 지정하세요.");
+        // 명령 입력 자동 부착 (Display 3 와 같은 RMB SetWaypoint + 전체 드론 시각화).
+        if (GetComponent<DroneSim.C2.MinimapCommandInput>() == null)
+            gameObject.AddComponent<DroneSim.C2.MinimapCommandInput>();
     }
 
     void OnDestroy()
@@ -168,9 +171,16 @@ public class Minimap : MonoBehaviour
         SetDisk(_circle, markerRadius, 24);   // 위치원은 정적
 
         // 드래그+토글+접기 래퍼 — 모든 자식이 _panelRt 에 부착된 다음에 부착해야 한다.
+        // 미니맵은 좌하단 고정 + 크기 조절 가능. Shift+M = 기본 크기로 리셋.
         var hud = panelGo.AddComponent<DraggableHud>();
         hud.windowTitle = "Minimap";
         hud.toggleKey = Key.M;
+        hud.lockPosition = true;
+        hud.resizable = true;
+        hud.minSize = new Vector2(150f, 150f);
+        hud.maxSize = new Vector2(1200f, 1200f);
+        hud.resetSizeKey = Key.M;
+        hud.resetSizeRequiresShift = true;
     }
 
     UIShape MakeShape(string name, Color c)
@@ -289,7 +299,9 @@ public class Minimap : MonoBehaviour
 
     Vector2 WorldOffsetToUi(float dx, float dz)
     {
-        float hx = panelSize.x * 0.5f, hy = panelSize.y * 0.5f;
+        // 라이브 panel rect size 사용 — 사용자가 그립으로 resize 했을 때 자동 추종.
+        Vector2 size = _panelRt != null ? _panelRt.rect.size : panelSize;
+        float hx = size.x * 0.5f, hy = size.y * 0.5f;
         return new Vector2(
             Mathf.Clamp(dx / viewRadius * hx, -hx, hx),
             Mathf.Clamp(dz / viewRadius * hy, -hy, hy));   // 북(+Z)=위(+Y)

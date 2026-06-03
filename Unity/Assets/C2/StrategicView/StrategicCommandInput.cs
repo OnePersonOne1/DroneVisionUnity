@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using DroneSim.Flight.UnityAdapter;
 using N = System.Numerics;
@@ -47,6 +48,10 @@ namespace DroneSim.C2.StrategicView
         [Header("전체 정지")]
         [Tooltip("모든 드론의 웨이포인트 큐 비우고 현 자리 hover. RTS 의 Stop(S) 대응.")]
         public Key stopAllKey = Key.Space;
+
+        [Header("선택 해제")]
+        [Tooltip("어느 디스플레이에서 눌러도 selectedDroneIds 비움 (= 전체 명령 모드 복귀).")]
+        public Key clearSelectionKey = Key.Escape;
 
         [Header("컨트롤 그룹 (RTS 부대지정)")]
         [Tooltip("Ctrl+숫자(1~9) 로 현재 선택을 그룹에 저장. 숫자(1~9) 단독 누르면 그 그룹 호출.")]
@@ -156,10 +161,13 @@ namespace DroneSim.C2.StrategicView
             var kb = Keyboard.current;
             if (mouse == null) return;
             Vector2 screen = mouse.position.ReadValue();
-            bool lmbDown = mouse.leftButton.wasPressedThisFrame;
+            // UGUI 위(미니맵·범례·HUD 등) 에서는 3D 입력 게이트 — 미니맵 RMB 가 StrategicCommandInput
+            // 의 FP/strategic 카메라 raycast 와 동시 발화하는 사고를 막는다.
+            bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            bool lmbDown = mouse.leftButton.wasPressedThisFrame && !overUI;
             bool lmbUp = mouse.leftButton.wasReleasedThisFrame;
             bool lmbHeld = mouse.leftButton.isPressed;
-            bool rmb = mouse.rightButton.wasPressedThisFrame;
+            bool rmb = mouse.rightButton.wasPressedThisFrame && !overUI;
             bool shift = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
             bool ctrl = kb != null && (kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
             // Alt 도 컨트롤 그룹 modifier 로 인정 — Editor 에서 Ctrl+1~9 가
@@ -177,6 +185,16 @@ namespace DroneSim.C2.StrategicView
                     if (FlightCommands.StopAndHover(a.agentId)) n++;
                 }
                 Debug.Log($"[Cmd] STOP ALL → {n} drones hover");
+            }
+
+            // 전역 ESC — 선택 비우기 (어느 디스플레이에서나).
+            if (kb != null && clearSelectionKey != Key.None && kb[clearSelectionKey].wasPressedThisFrame)
+            {
+                if (selectedDroneIds.Count > 0)
+                {
+                    selectedDroneIds.Clear();
+                    Debug.Log("[Cmd] ESC → 선택 해제 (target = ALL drones)");
+                }
             }
 
             // 고도 키.

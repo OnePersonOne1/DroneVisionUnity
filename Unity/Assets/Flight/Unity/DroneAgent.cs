@@ -13,7 +13,9 @@ namespace DroneSim.Flight.UnityAdapter
     public class DroneAgent : MonoBehaviour
     {
         [Header("Identity")]
-        public string agentId = "drone_sim_obj_0";
+        // 비워두면 Awake 의 DroneRegistry.Register 가 NextDefaultId() 로 자동 부여 ("drone_sim_obj_1", 2, ...).
+        // 디폴트를 비워야 매 Spawn 마다 Register 가 중복 충돌해서 _nextSerial 이 건너뛰는 현상이 안 생긴다.
+        public string agentId = "";
 
         [Header("Models (한 게임오브젝트에 둘 다 부착, 활성 모델만 IsActive=true)")]
         public HighFidelityFlightModel highFidelity;

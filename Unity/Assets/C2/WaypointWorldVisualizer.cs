@@ -21,6 +21,22 @@ namespace DroneSim.C2
         public float cylinderHeightUnity = 1e6f;
         [Range(0f, 1f)] public float cylinderAlpha = 0.30f;
 
+        [Header("지면 원반 (waypoint 위치 표시)")]
+        public bool showGroundDiscs = true;
+        [Tooltip("지면 원반 반경 (real m). 원기둥 반경보다 크게 잡아 멀리서도 보임.")]
+        public float discRadiusMeters = 6f;
+        [Tooltip("원반 두께 (Unity 단위). 너무 얇으면 z-fighting.")]
+        public float discThicknessUnity = 0.5f;
+        [Range(0f, 1f)] public float discAlpha = 0.55f;
+        [Tooltip("지면 위로 띄울 높이 (real m). 0 이면 지면과 같은 높이 → z-fighting 가능.")]
+        public float discLiftMeters = 0.2f;
+        public LayerMask groundMask = ~0;
+        [Tooltip("지면 raycast 최대 거리 (Unity 단위).")]
+        public float groundRayDistanceUnity = 1e6f;
+        [Tooltip("원반 색 (cylinder 색과 다르게).")]
+        public Color discDefaultColor = new Color(1f, 0.4f, 0.2f, 1f);
+        public Color discSelectedColor = new Color(1f, 0.85f, 0.1f, 1f);
+
         [Header("경로 라인")]
         public bool showPathLines = true;
         [Tooltip("라인 굵기 (real m).")]
@@ -39,6 +55,7 @@ namespace DroneSim.C2
         class DroneVis
         {
             public List<MeshRenderer> cylinders = new List<MeshRenderer>();
+            public List<MeshRenderer> discs = new List<MeshRenderer>();
             public LineRenderer line;
         }
         readonly Dictionary<string, DroneVis> _vis = new Dictionary<string, DroneVis>();
@@ -60,6 +77,8 @@ namespace DroneSim.C2
                 else _scale = 1f;
             }
             float radius = cylinderRadiusMeters * _scale;
+            float discR = discRadiusMeters * _scale;
+            float discLift = discLiftMeters * _scale;
             float lineW = lineThicknessMeters * _scale;
 
             var seen = new HashSet<string>();
@@ -85,6 +104,8 @@ namespace DroneSim.C2
                 Color c = isSel ? selectedColor : defaultColor;
                 Color cylC = new Color(c.r, c.g, c.b, cylinderAlpha);
                 Color lineC = new Color(c.r, c.g, c.b, lineAlpha);
+                Color dc = isSel ? discSelectedColor : discDefaultColor;
+                Color discC = new Color(dc.r, dc.g, dc.b, discAlpha);
 
                 // 원기둥.
                 if (showCylinders)
@@ -103,6 +124,29 @@ namespace DroneSim.C2
                     for (int i = wps.Count; i < v.cylinders.Count; i++) v.cylinders[i].gameObject.SetActive(false);
                 }
                 else foreach (var m in v.cylinders) if (m != null) m.gameObject.SetActive(false);
+
+                // 지면 원반 (waypoint XZ → 지면 raycast → 그 지점에 평평한 원기둥).
+                if (showGroundDiscs)
+                {
+                    while (v.discs.Count < wps.Count) v.discs.Add(CreateDisc());
+                    for (int i = 0; i < wps.Count; i++)
+                    {
+                        var mr = v.discs[i];
+                        // 충분히 위에서 아래로 raycast.
+                        Vector3 from = new Vector3(wps[i].x, wps[i].y + groundRayDistanceUnity * 0.5f, wps[i].z);
+                        Vector3 groundPos;
+                        if (Physics.Raycast(from, Vector3.down, out RaycastHit hit, groundRayDistanceUnity, groundMask))
+                            groundPos = hit.point + Vector3.up * discLift;
+                        else
+                            groundPos = new Vector3(wps[i].x, discLift, wps[i].z);   // fallback
+                        mr.gameObject.SetActive(true);
+                        mr.transform.position = groundPos;
+                        mr.transform.localScale = new Vector3(discR * 2f, discThicknessUnity * 0.5f, discR * 2f);
+                        mr.sharedMaterial.color = discC;
+                    }
+                    for (int i = wps.Count; i < v.discs.Count; i++) v.discs[i].gameObject.SetActive(false);
+                }
+                else foreach (var m in v.discs) if (m != null) m.gameObject.SetActive(false);
 
                 // 경로 라인.
                 if (showPathLines)
@@ -129,6 +173,7 @@ namespace DroneSim.C2
             {
                 var v = _vis[id];
                 foreach (var m in v.cylinders) if (m != null) Destroy(m.gameObject);
+                foreach (var m in v.discs) if (m != null) Destroy(m.gameObject);
                 if (v.line != null) Destroy(v.line.gameObject);
                 _vis.Remove(id);
             }
@@ -137,6 +182,20 @@ namespace DroneSim.C2
         MeshRenderer CreateCylinder()
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(transform, true);
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = MakeTransparentMaterial();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            return mr;
+        }
+
+        MeshRenderer CreateDisc()
+        {
+            // 평평한 원기둥(Y 매우 작음) = 지면 원반. 같은 메쉬·머티리얼 구성.
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = "WpGroundDisc";
             Destroy(go.GetComponent<Collider>());
             go.transform.SetParent(transform, true);
             var mr = go.GetComponent<MeshRenderer>();

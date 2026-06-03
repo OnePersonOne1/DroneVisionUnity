@@ -94,3 +94,7 @@ Thumbs.db
 CLAUDE.md
 .claude/
 .~lock.*
+
+# Unity 가 자동 생성하는 복구본 — 커밋 X.
+Unity/Assets/_Recovery/
+Unity/Assets/_Recovery.meta

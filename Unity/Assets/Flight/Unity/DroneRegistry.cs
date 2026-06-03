@@ -8,7 +8,8 @@ namespace DroneSim.Flight.UnityAdapter
     {
         static readonly Dictionary<string, DroneAgent> _byId = new Dictionary<string, DroneAgent>();
         static readonly List<DroneAgent> _all = new List<DroneAgent>();
-        static int _nextSerial = 0;
+        // 1 부터 시작 — UI 표시용 일관성 (드론 1, 2, 3, ...).
+        static int _nextSerial = 1;
 
         public static IReadOnlyList<DroneAgent> All => _all;
         public static int Count => _all.Count;
