@@ -84,8 +84,9 @@ cd Python
 
 ```bash
 python3 capture.py                                      # 촬영·저장만
-python3 infer.py --session ../output/<session>          # 오프라인 추론
+python3 infer.py --session ../output/<session>          # 오프라인 추론 (커스텀 ckpt, 6-class)
 python3 infer.py --all                                   # output/* 전체 일괄
+python3 infer.py --coco --last 2                         # COCO pretrained 80-class 비교 (detect_offline_coco/)
 python3 projection_pipeline.py --session ../output/<session>
 python3 replay_offline.py     --session ../output/<session> --rate 5 --loop
 ```

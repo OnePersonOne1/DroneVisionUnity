@@ -174,18 +174,22 @@ def _parse_frame_id_from_name(filename):
     m = re.search(r"(\d+)", os.path.basename(filename))
     return int(m.group(1)) if m else None
 
-def infer_session(session_path, model, box_ann, lbl_ann, force=False):
+def infer_session(session_path, model, box_ann, lbl_ann, force=False,
+                  classes=None, out_suffix=""):
     """한 세션(output/<session>/image/*.jpg)에 RF-DETR 일괄 추론.
 
-    결과: output/<session>/detect_offline/
+    결과: output/<session>/detect_offline{out_suffix}/
       - det_frame_{id}.jpg (annotated)
-      - detections_{session}.csv
+      - detections_{session}{out_suffix}.csv
+    out_suffix="_coco" 면 COCO weight 추론 산출물을 별 디렉터리로 분리.
     이미 CSV가 있으면 skip (force=True면 덮어씀). 처리한 프레임 수를 반환.
     """
+    if classes is None:
+        classes = CUSTOM_CLASSES
     session_name = os.path.basename(session_path.rstrip(os.sep))
     image_dir = os.path.join(session_path, "image")
-    out_dir = os.path.join(session_path, OFFLINE_SUBDIR)
-    out_csv = os.path.join(out_dir, f"detections_{session_name}.csv")
+    out_dir = os.path.join(session_path, OFFLINE_SUBDIR + out_suffix)
+    out_csv = os.path.join(out_dir, f"detections_{session_name}{out_suffix}.csv")
 
     if os.path.exists(out_csv) and not force:
         print(f"  [skip] {session_name}: 이미 결과 존재 ({out_csv}) — 덮어쓰려면 force/--force")
@@ -217,7 +221,7 @@ def infer_session(session_path, model, box_ann, lbl_ann, force=False):
             sys_time = os.path.getmtime(img_path)
 
             try:
-                detections, annotated = predict_and_annotate(frame_bgr, model, box_ann, lbl_ann)
+                detections, annotated = predict_and_annotate(frame_bgr, model, box_ann, lbl_ann, classes=classes)
             except Exception as e:
                 print(f"    [추론 오류] {img_path}: {type(e).__name__} - {e}")
                 continue
@@ -225,7 +229,7 @@ def infer_session(session_path, model, box_ann, lbl_ann, force=False):
             out_img = os.path.join(out_dir, f"det_frame_{frame_id:06d}.jpg")
             cv2.imwrite(out_img, cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR))
 
-            write_detection_rows(writer, frame_id, sys_time, detections)
+            write_detection_rows(writer, frame_id, sys_time, detections, classes=classes)
 
             if (i + 1) % 25 == 0 or (i + 1) == len(image_paths):
                 f.flush()
@@ -237,8 +241,12 @@ def infer_session(session_path, model, box_ann, lbl_ann, force=False):
     return n
 
 
-def run_offline_inference():
-    """output/* 의 모든 세션 일괄 추론 (배치). 단일 세션은 infer.py / infer_session 사용."""
+def run_offline_inference(use_coco=False, last=None, force=False):
+    """output/* 의 모든 세션 일괄 추론 (배치). 단일 세션은 infer.py / infer_session 사용.
+
+    use_coco=True 면 COCO pretrained 로 추론, detect_offline_coco/ 에 저장.
+    last=N 이면 최신 N 개 세션만 처리.
+    """
     sessions = sorted(
         d for d in glob.glob(os.path.join(OFFLINE_INPUT_BASE, "*"))
         if os.path.isdir(d) and os.path.isdir(os.path.join(d, "image"))
@@ -246,35 +254,57 @@ def run_offline_inference():
     if not sessions:
         print(f"[오프라인] '{OFFLINE_INPUT_BASE}/' 하위에 image/가 있는 세션이 없습니다. 처리할 데이터가 없습니다.")
         return
+    if last is not None and last > 0:
+        sessions = sessions[-last:]
 
-    print(f"[오프라인] 처리 대상 세션 {len(sessions)}개 발견.")
-    model, box_ann, lbl_ann = load_rfdetr_model()
+    from coco_classes import COCO_CLASSES
+    classes = COCO_CLASSES if use_coco else CUSTOM_CLASSES
+    out_suffix = "_coco" if use_coco else ""
+    label = "COCO pretrained" if use_coco else "커스텀 ckpt"
+
+    print(f"[오프라인] 처리 대상 세션 {len(sessions)}개 ({label}, suffix='{out_suffix}').")
+    model, box_ann, lbl_ann = load_rfdetr_model(use_coco=use_coco)
 
     total_processed = 0
     for session_path in sessions:
-        total_processed += infer_session(session_path, model, box_ann, lbl_ann)
+        total_processed += infer_session(session_path, model, box_ann, lbl_ann,
+                                          force=force, classes=classes, out_suffix=out_suffix)
 
-    print(f"\n[오프라인] 전체 완료. 총 {total_processed} 프레임 처리됨. 결과: ./{OFFLINE_INPUT_BASE}/<session>/{OFFLINE_SUBDIR}/")
+    print(f"\n[오프라인] 전체 완료. 총 {total_processed} 프레임 처리됨. "
+          f"결과: ./{OFFLINE_INPUT_BASE}/<session>/{OFFLINE_SUBDIR}{out_suffix}/")
 
-def load_rfdetr_model():
-    """RF-DETR 모델과 supervision annotator들을 로드. (라이브/오프라인 공용)"""
+def load_rfdetr_model(use_coco=False):
+    """RF-DETR 모델과 supervision annotator들을 로드. (라이브/오프라인 공용)
+
+    use_coco=True 면 pretrain_weights 인자를 빼서 라이브러리가 자동으로 COCO
+    pretrained weight 를 받아오게 한다 (HuggingFace 미러). 클래스 head 는 80-class.
+    기본(False) 은 기존 커스텀 ckpt (Models/checkpoint_best_total.pth, 6-class).
+    """
     import supervision as sv
     from rfdetr_plus import RFDETR2XLarge
-    print("[RF-DETR] 모델 로딩 중...")
-    model = RFDETR2XLarge(
-        pretrain_weights=MODEL_WEIGHTS,
-        accept_platform_model_license=True,
-    )
+    if use_coco:
+        print("[RF-DETR] COCO pretrained 2XLarge 로딩 중...")
+        model = RFDETR2XLarge(accept_platform_model_license=True)
+    else:
+        print("[RF-DETR] 커스텀 weight 로딩 중...")
+        model = RFDETR2XLarge(
+            pretrain_weights=MODEL_WEIGHTS,
+            accept_platform_model_license=True,
+        )
     model.optimize_for_inference()
     print("[RF-DETR] 모델 로딩 완료.")
     return model, sv.BoxAnnotator(), sv.LabelAnnotator()
 
-def predict_and_annotate(frame_bgr, model, box_annotator, label_annotator):
+def predict_and_annotate(frame_bgr, model, box_annotator, label_annotator, classes=None):
     """한 BGR 프레임에 대해 추론 + annotation 수행.
+
+    classes: {id: name} 매핑 (None 이면 CUSTOM_CLASSES).
 
     Returns:
         (detections, annotated_rgb): supervision Detections와 RGB numpy 이미지.
     """
+    if classes is None:
+        classes = CUSTOM_CLASSES
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(rgb)
     detections = model.predict(pil_image, threshold=INFERENCE_THRESHOLD)
@@ -282,7 +312,7 @@ def predict_and_annotate(frame_bgr, model, box_annotator, label_annotator):
     labels = []
     for class_id, confidence in zip(detections.class_id, detections.confidence):
         c_id = int(class_id)
-        class_name = CUSTOM_CLASSES.get(c_id, f"Unknown_ID_{c_id}")
+        class_name = classes.get(c_id, f"Unknown_ID_{c_id}")
         labels.append(f"{class_name} {confidence:.2f}")
 
     image_np = np.array(pil_image)
@@ -290,12 +320,14 @@ def predict_and_annotate(frame_bgr, model, box_annotator, label_annotator):
     annotated = label_annotator.annotate(scene=annotated, detections=detections, labels=labels)
     return detections, annotated
 
-def write_detection_rows(writer, frame_id, sys_time, detections):
+def write_detection_rows(writer, frame_id, sys_time, detections, classes=None):
     """detections의 각 박스를 CSV 한 행씩 기록."""
+    if classes is None:
+        classes = CUSTOM_CLASSES
     for box, c_id, conf in zip(detections.xyxy, detections.class_id, detections.confidence):
         x1, y1, x2, y2 = (float(v) for v in box)
         c_id_int = int(c_id)
-        class_name = CUSTOM_CLASSES.get(c_id_int, f"Unknown_ID_{c_id_int}")
+        class_name = classes.get(c_id_int, f"Unknown_ID_{c_id_int}")
         writer.writerow([frame_id, sys_time, c_id_int, class_name, float(conf), x1, y1, x2, y2])
 
 def _save_live_meta(origin_gps):
