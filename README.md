@@ -124,6 +124,8 @@ python3 Python/sitl/bridge_test.py
 
 QGroundControl AppImage 호스트 실행 → 좌상단 `Q` → Application Settings → Comm Links → Add (UDP, Listening Port 14540, Target `127.0.0.1:14540`) → Connect. Fly View 가 default. 자세한 작업 흐름은 `조작법.md` 의 SITL 섹션 참고.
 
+SITL 드론의 시각 spawn 기준점은 `MavlinkFlightModel.spawnReference → CubeGPSDisplay.cubeObject → anchorObject` 순으로 결정 — anchorObject(예: `Point1`) 가 시야 밖이라도 cube 앞에 뜨도록 자동 fallback. GPS 변환의 anchor 자체는 무변경.
+
 #### 기계제어 분석 도구 (포트폴리오용)
 
 ```bash
