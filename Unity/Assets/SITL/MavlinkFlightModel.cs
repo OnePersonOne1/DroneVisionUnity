@@ -38,6 +38,13 @@ namespace DroneSim.SITL
         [Tooltip("이 시간(초) 동안 텔레메트리 없으면 stale 로 표시. 브리지/Gazebo 종료 감지.")]
         public float staleTimeoutSec = 3f;
 
+        [Header("시각적 spawn 기준점")]
+        [Tooltip("SITL 드론의 home (텔레메트리 lat/lon = anchorLat/Lon 시점) 이 놓일 Unity world 위치. " +
+                 "null 이면 CubeGPSDisplay.cubeObject → anchorObject 순으로 자동 선택. " +
+                 "anchorObject(Point1) 가 카메라 시야 밖이라 시뮬 드론처럼 cube 앞에 spawn 시키려면 " +
+                 "여기 Cube 를 드래그하거나 비워두면 cubeObject 가 자동 사용된다.")]
+        public Transform spawnReference;
+
         [Header("Debug (read-only)")]
         public bool hasTelemetry;
         public bool isStale;
@@ -76,7 +83,7 @@ namespace DroneSim.SITL
         double _anchorLat = 37.384312, _anchorLon = 126.655307;
         double _horizScale = 1.0;        // horizontalScaleFactor (Unity units / meter, 수평)
         double _vertScale = 1.0;         // unitsPerMeter (수직, 건물 기준)
-        Vector3 _basePos;                // anchorObject.position
+        Vector3 _basePos;                // spawnReference ?? cubeObject ?? anchorObject 의 position
         float _baseY;                    // refBuilding bounds.min.y (고도 원점)
         bool _calibReady;
 
@@ -226,7 +233,15 @@ namespace DroneSim.SITL
             _anchorLat = _calib.anchorLatitude;
             _anchorLon = _calib.anchorLongitude;
             _horizScale = _calib.horizontalScaleFactor > 1e-9 ? _calib.horizontalScaleFactor : 1.0;
-            _basePos = _calib.anchorObject != null ? _calib.anchorObject.position : Vector3.zero;
+
+            // spawn 시각 기준점: 인스펙터의 spawnReference → CubeGPSDisplay.cubeObject → anchorObject 순.
+            // anchorObject(예: Point1) 가 카메라 시야 밖에 있어 SITL 드론이 멀리 보이는 문제를 회피.
+            // GPS 변환의 anchorLat/Lon 은 그대로 유지 — 시각적 origin 만 cube 로 이동.
+            Transform baseT = spawnReference;
+            string baseLabel = "spawnReference";
+            if (baseT == null) { baseT = _calib.cubeObject; baseLabel = "cubeObject"; }
+            if (baseT == null) { baseT = _calib.anchorObject; baseLabel = "anchorObject"; }
+            _basePos = baseT != null ? baseT.position : Vector3.zero;
 
             // 수직 스케일 + 고도 원점 — 기준 건물 bounds (CubeGPSDisplay 와 동일 계산).
             var refB = _calib.altitudeReferenceBuilding;
@@ -240,7 +255,8 @@ namespace DroneSim.SITL
                     _vertScale = h / _calib.referenceBuildingHeightMeters;
                     _calibReady = true;
                     Debug.Log($"[Mavlink] calib ready: anchor=({_anchorLat:F6},{_anchorLon:F6}) " +
-                              $"horizScale={_horizScale} vertScale={_vertScale:F3} baseY={_baseY:F1}");
+                              $"horizScale={_horizScale} vertScale={_vertScale:F3} baseY={_baseY:F1} " +
+                              $"basePos={_basePos} (from {baseLabel})");
                     return true;
                 }
             }

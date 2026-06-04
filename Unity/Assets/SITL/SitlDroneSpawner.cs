@@ -53,10 +53,14 @@ namespace DroneSim.SITL
             var root = new GameObject("DroneSITL");
             root.SetActive(false);
 
-            // placeholder 위치 (앵커 부근). 텔레메트리 도착 시 즉시 갱신됨.
+            // placeholder 위치 (cube/anchor 부근). 텔레메트리 도착 시 즉시 갱신됨.
+            // MavlinkFlightModel 의 _basePos 결정 순서와 동일: cubeObject → anchorObject.
+            // anchorObject(예: Point1) 가 카메라 시야 밖이면 cube 우선 사용해 시뮬 드론처럼 cube 앞에 spawn.
             var calib = FindObjectOfType<CubeGPSDisplay>();
-            root.transform.position = calib != null && calib.anchorObject != null
-                ? calib.anchorObject.position + Vector3.up * (5f * uupm)
+            Transform baseT = null;
+            if (calib != null) baseT = calib.cubeObject != null ? calib.cubeObject : calib.anchorObject;
+            root.transform.position = baseT != null
+                ? baseT.position + Vector3.up * (5f * uupm)
                 : new Vector3(0f, 5f * uupm, 0f);
 
             BuildVisual(root.transform, visualScale * uupm);
