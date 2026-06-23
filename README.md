@@ -1,8 +1,21 @@
 # DroneVisionUnity
 
-드론·카메라 영상을 RF-DETR 로 객체 검출하고, 검출 결과를 인천 3D 지도 위 GPS 좌표에 투영해 시각화하는 파이프라인. Python 이 추론과 좌표 계산을 담당하고 Unity 가 지도 렌더링과 인터랙션을 담당한다. Unity 측에는 PhysX 가 아닌 자체 6-DOF 비행 모델로 동작하는 드론 시뮬레이션도 포함된다.
+드론·카메라 영상을 RF-DETR 로 객체 검출하고, 검출 결과를 인천 3D 지도 위 GPS 좌표에 투영해 시각화하는 파이프라인. Python 이 추론과 좌표 계산을 담당하고 Unity 가 지도 렌더링과 인터랙션을 담당한다. Unity 측에는 PX4-SITL 뿐만 아니라, 자체 6-DOF 비행 모델로 동작하는 드론 시뮬레이션도 동시에 포함된다.
 
 좌표 변환 규약 상세는 [`Unity/PIPELINE_MERGE_NOTES.md`](Unity/PIPELINE_MERGE_NOTES.md), 키 매핑은 [`조작법.md`](조작법.md) 참고.
+
+# Demo
+아래는 실제 시연 사진이다.
+
+## 결과: LLM 브리핑 + 드론 제어 + Object detection + 전략적 보기 제공
+![result](presentation/result.png)
+![building information](presentation/Arbitary_building_information.png)
+![architecture](presentation/Drone_control.png)
+![strategic view](presentation/TopView.png)
+
+## 3D Map: Incheon
+![3D_map1](presentation/3D_map1.png)
+![3D_map2](prsentation/3D_map2.png)
 
 ## 구성 요소
 
@@ -17,6 +30,8 @@
 ## 데이터 흐름
 
 ```
+![architecture](presentation/architecture.jpg)
+
 [카메라/폰]                              ┌────────────────────────────┐
    영상 + GPS/IMU                         │  Unity (URP)               │
         │                                 │  ProjectionUdpReceiver     │
@@ -80,7 +95,7 @@ GitHub 저장소에는 100 MB 이상의 RF-DETR 가중치 및 캡처 세션이 �
 cd Python
 ```
 
-촬영·추론 분리 (권장):
+촬영·추론 분리:
 
 ```bash
 python3 capture.py                                      # 촬영·저장만
@@ -91,7 +106,7 @@ python3 projection_pipeline.py --session ../output/<session>
 python3 replay_offline.py     --session ../output/<session> --rate 5 --loop
 ```
 
-올인원 라이브:
+올인원 라이브(real-time):
 
 ```bash
 python3 IP_webcam.py    # 폰 연결 시 라이브, 미연결 시 자동 오프라인 모드
@@ -327,7 +342,6 @@ Unity/Assets/Tests/EditMode/         (NUnit)
 ## 향후 목표
 
 - **PX4 SITL 다중 드론**: 현재 1대 전제 (`MavlinkFlightModel` 이 udp:9871/9872 단독 bind, `px4_bridge.py` 가 단일 MAVSDK 연결). 다중 활성화하려면 (a) PX4 SITL 인스턴스를 별 포트(14541, 14542, …) 로 분리, (b) `px4_bridge.py` 를 N MAVSDK 다중화하고 텔레메트리에 `system_id` 부착, (c) Unity 측 9871 single-socket 을 sysid → DroneAgent 라우터로 재설계 필요. 시뮬 드론 (`drone_sim_obj_N`) 은 이미 다중 지원이라 시뮬 N + SITL 1 운영으로 우회 가능 — 추가 작업은 후속 task.
-- **인천 anchor / horizontalScaleFactor stale 문서 정정**: 본 README/CLAUDE.md 의 일부 절은 옛 anchor(`37.384312`, scale `1`) 를 기준으로 작성됐으나, 실제 씬의 `CubeGPSDisplay` 는 `lat 37.384049721493724 / lng 126.65615666326806 / horizontalScaleFactor 9.715` 로 정정됨 (`worlds/incheon.sdf` 도 그에 맞춰져 있음). 문서 정합 정리는 후속.
 - **음성·LLM 명령 입력**: 현재 LLM 은 `/assess` 표시 전용. 음성/자연어로 SetWaypoint 같은 명령 트리거는 미지원 — 안전 우선 (LLM 출력이 제어 경로에 직결되지 않음).
 - **빌드 자동화**: 현재 검증은 Editor Play 또는 `SitlPlayCheck.Run` 의 xvfb 헤드리스. CI 통합 (GitHub Actions 등) 미설정.
 
