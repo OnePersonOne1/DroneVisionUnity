@@ -15,7 +15,7 @@
 
 ## 3D Map: Incheon
 ![3D_map1](presentation/3D_map1.png)
-![3D_map2](prsentation/3D_map2.png)
+![3D_map2](presentation/3D_map2.png)
 
 ## 구성 요소
 
