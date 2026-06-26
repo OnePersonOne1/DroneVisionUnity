@@ -27,6 +27,16 @@ COCO 사전학습 (80-class) — `person` / `car` / `truck` 등 일반 객체를
 ![COCO detection](presentation/COCO_objectdetection.jpg)
 ![COCO detection 2](presentation/COCO_objectdetection_2.jpg)
 
+## 장거리 검출 — GT vs 추론
+
+원거리 산불 항공 영상에서 커스텀 모델이 `smoke_region`(대형 박스)·`fire_region`·`human` 을 검출한 예다. 위가 정답(GT), 아래가 추론 결과.
+
+정답 (Ground Truth)
+![GT long-range](presentation/GT_video_002_frame_000149_revised.png)
+
+추론 결과
+![inference long-range](presentation/result_video_002_frame_000149.jpg)
+
 ## 검출 성능
 
 커스텀 RF-DETR (4-class) 를 100 epoch 학습한 검증 지표다. 전체 학습 로그는 [`presentation/metrics.csv`](presentation/metrics.csv) 에 있다.
