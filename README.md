@@ -10,7 +10,7 @@
 ## 결과: LLM 브리핑 + 드론 제어 + Object detection + 전략적 보기 제공
 ![result](presentation/result.png)
 ![building information](presentation/Arbitary_building_information.png)
-![drone control](presentation/Droe_control.png.png)
+![drone control](presentation/Droe_control.png)
 ![strategic view](presentation/TopView.png)
 
 ## 3D Map: Incheon
