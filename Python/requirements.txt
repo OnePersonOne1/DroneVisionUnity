@@ -1,0 +1,21 @@
+# DroneVisionUnity — 메인 추론·투영 파이프라인 의존성
+#
+# 설치:  cd Python && pip install -r requirements.txt
+#   - rfdetr 가 PyTorch 등 무거운 의존성을 함께 끌어온다 (설치 10~30분 소요 가능).
+#   - LLM/건물정보 백엔드는 별도: Python/info_service/requirements.txt
+#   - PX4 SITL 분석 도구는 아래 "선택" 섹션 참고.
+
+# --- 추론 (RF-DETR) ---
+rfdetr
+supervision
+
+# --- 영상 · 수치 · 시각화 ---
+opencv-python
+numpy
+pillow
+matplotlib
+requests>=2.31
+
+# --- (선택) PX4 SITL 분석 도구 ---
+# step_response.py / pid_sweep.py / bridge_test.py / sitl_smoketest.py 사용 시:
+# mavsdk>=3,<4
