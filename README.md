@@ -5,17 +5,62 @@
 좌표 변환 규약 상세는 [`Unity/PIPELINE_MERGE_NOTES.md`](Unity/PIPELINE_MERGE_NOTES.md), 키 매핑은 [`조작법.md`](조작법.md) 참고.
 
 # Demo
-아래는 실제 시연 사진이다.
 
-## 결과: LLM 브리핑 + 드론 제어 + Object detection + 전략적 보기 제공
+## 통합 결과 — LLM 브리핑 · 드론 제어 · 객체 검출 · 전략 보기
 ![result](presentation/result.png)
 ![building information](presentation/Arbitary_building_information.png)
 ![drone control](presentation/Droe_control.png)
 ![strategic view](presentation/TopView.png)
 
-## 3D Map: Incheon
+## 3D 지도 (인천)
 ![3D_map1](presentation/3D_map1.png)
 ![3D_map2](presentation/3D_map2.png)
+
+## 객체 검출 — 커스텀 vs COCO 사전학습
+
+같은 드론 시점 장면에 두 모델을 적용한 결과다. 정량 지표와 두 모델을 병행하는 이유는 [검출 성능](#검출-성능) 참고.
+
+커스텀 학습 (RF-DETR, 4-class: `fire_region` / `human` / `lake` / `smoke_region`) — 재난 도메인 클래스에 특화.
+![custom detection](presentation/customset_train.jpg)
+
+COCO 사전학습 (80-class) — `person` / `car` / `truck` 등 일반 객체를 안정적으로 검출.
+![COCO detection](presentation/COCO_objectdetection.jpg)
+![COCO detection 2](presentation/COCO_objectdetection_2.jpg)
+
+## 검출 성능
+
+커스텀 RF-DETR (4-class) 를 100 epoch 학습한 검증 지표다. 전체 학습 로그는 [`presentation/metrics.csv`](presentation/metrics.csv) 에 있다.
+
+**best checkpoint 종합**
+
+| 지표 | 값 |
+|---|---|
+| mAP@0.50 | 0.523 |
+| mAP@[.50:.95] | 0.349 |
+| mAP@0.75 | 0.374 |
+| Precision | 0.670 |
+| Recall | 0.553 |
+| F1 | 0.593 |
+
+**클래스별 AP@[.50:.95]**
+
+| 클래스 | AP | 표본 |
+|---|---|---|
+| `lake` | 0.669 | 충분 |
+| `smoke_region` | 0.636 | 충분 |
+| `human` | 0.066 | 부족 |
+| `fire_region` | 0.027 | 부족 |
+| **mAP (4-class 평균)** | **0.349** | |
+
+### 한계점
+
+- **클래스 불균형** — `lake`·`smoke_region` 은 AP 0.64–0.67 로 양호하지만, 표본이 적은 `human`·`fire_region` 은 AP 0.03–0.07 에 머문다. 4-class 평균 mAP 를 끌어내리는 주 원인이다.
+- **과적합** — 검증 mAP 는 fine-tune 초기(학습 1 epoch 직후)에 최고치를 찍고 이후 단조 하락한다. 소규모 커스텀셋에 모델이 빠르게 과적합한다는 신호로, 사실상 `checkpoint_best` 는 학습 초반에 저장된다.
+
+### 대안
+
+- **모델 병행** — 일반 객체(`person`/`car`/`truck`)는 위 데모처럼 COCO 사전학습 80-class 가 안정적이다. 도메인 클래스(`fire`/`smoke`/`lake`)만 커스텀으로 두고 둘을 병행·앙상블하면 약한 `human`·`fire` AP 를 우회할 수 있다. COCO 비교 추론은 `python3 infer.py --coco` 로 바로 재현된다.
+- **학습 개선** — `human`·`fire` 표본 추가 + 클래스 밸런싱(오버샘플/loss 가중) + 데이터 증강, 그리고 early stopping·backbone freeze 로 과적합을 늦추면 커스텀 단독 성능도 끌어올릴 여지가 있다.
 
 ## 구성 요소
 
@@ -29,9 +74,9 @@
 
 ## 데이터 흐름
 
-```
 ![architecture](presentation/architecture.jpg)
 
+```
 [카메라/폰]                              ┌────────────────────────────┐
    영상 + GPS/IMU                         │  Unity (URP)               │
         │                                 │  ProjectionUdpReceiver     │
@@ -188,61 +233,24 @@ KAKAO_REST_API_KEY=<발급키> python3 info_server.py   # localhost:8077
   - 검출 0개 프레임은 `detections=[]` + 카메라 fwd/up(IMU quat 추정) 만 담아 송신.
 - **라이브** (`IP_webcam.py`): 파일 상단 `UDP_REALTIME_MODE = True` (기본). `False` 로 두면 기존처럼 검출 있을 때만 송신.
 
-## 조작 키 요약
+## 조작 키 (요약)
 
-Cube (지도 시점 / GPS HUD):
+전체 키 매핑과 세부 동작은 [`조작법.md`](조작법.md) 에 정리돼 있다. 자주 쓰는 핵심만 추리면:
 
-| 키 | 동작 |
-|---|---|
-| W A S D / ↑↓ / ←→ / R F | 수평 이동 · 상승하강 · Yaw · Pitch |
-| LMB 드래그 | 마우스 룩 (yaw + pitch) |
-| V | 1인칭(FP) 토글 |
-| T / Y | GPS 텔레포트 오버라이드 / 현재 GPS 복사 |
-| I / O / C | 추론 표시 / 디버그 광선 / 디버그 마커 정리 |
-| B / N / H / X | 건물 정보 조회 / dwell 모드 / 하이라이트 / 선택 해제 |
-| `\` | 건물 정보 조회 (Display 4 sensor camera 기준) |
-| P | GPS HUD 토글 |
+| 대상 | 키 / 입력 | 동작 |
+|---|---|---|
+| Cube (지도·HUD) | W A S D / ↑↓ / ←→ / R F | 이동 · 상승하강 · Yaw · Pitch |
+| Cube | V / P / I | 1인칭 토글 / GPS HUD / 추론 표시 |
+| Cube | B | 중앙 픽셀 건물 정보 조회 |
+| 화재 브리핑 | `;` / `'` / Del | fire 마커 / smoke 마커 / 전체 제거 |
+| 화재 브리핑 | F12 | Briefing 패널 토글 |
+| 드론 시뮬 | `` ` `` / RMB / Space | spawn / SetWaypoint / 전체 정지 |
+| 드론 시뮬 | LMB 드래그 / ESC | 박스 셀렉트 / 선택 해제 |
+| PX4 SITL | Numpad 7 / 8 / 9 / 6 | ARM / TAKEOFF / LAND / RTL |
 
-상황 판단 — 모의 화재 + LLM 브리핑 (`/assess`):
+모의 화재가 한 건이라도 추가되면 즉시 `/assess` 호출 → BriefingPanel 에 risk · 시간대 · top-5 119안전센터 · 권장 차량 · 한국어 브리핑이 표시된다. RF-DETR 의 `fire_region`/`smoke_region` 검출 마커도 동일하게 합산된다.
 
-| 키 | 동작 |
-|---|---|
-| `;` | FP 중앙 raycast 점에 **fire 마커** 주입 (`fire_region`, 기본 영구) |
-| `'` | 동일 위치에 **smoke 마커** 주입 (`smoke_region`) |
-| Del | 모든 모의 화재 일괄 제거 |
-| Z | **SimClock 패널** 토글 — 시간대 프리셋(08/12/18/02) + 수동 시:분 |
-| F12 / Shift+F12 | **Briefing 패널** 토글 / 크기 리셋 |
-| F11 | 수동 즉시 /assess 호출 (개발용) |
-| `[` | FP(Display 1) ↔ Sensor(Display 4) 카메라 교환 — 3 모니터 환경용 |
-
-모의 화재 한 건이라도 추가되면 즉시 /assess 호출 → BriefingPanel 에 risk · 시간대 · top-5 119안전센터 · 룰 기반 권장 차량 · 한국어 브리핑 표시. RF-DETR 검출의 `fire_region`/`smoke_region` 마커도 자동 합산 (FireSim 마커와 동일하게 평가됨).
-
-드론 시뮬레이션 (`drone_sim_obj_n`, n = 1, 2, 3, …):
-
-| 입력 | 동작 |
-|---|---|
-| `` ` `` | 드론 추가 spawn |
-| F10 | 비행 모드 토글 (HighFidelity ↔ Arcade) |
-| LMB 클릭 (드론 마커) | 단일 선택 (Shift = 추가/제거) |
-| LMB 드래그 (전략 뷰 또는 미니맵) | 박스 셀렉트 |
-| LMB 단일 클릭 (전략 뷰 또는 미니맵) | 선택 해제 → 전체 대상 |
-| Ctrl + LMB 드래그 (전략 뷰 또는 미니맵) | 마우스 궤적 → SetPath |
-| RMB | 선택군 SetWaypoint (Shift = QueueWaypoint) |
-| **ESC** | 선택 해제 (전역, 어느 디스플레이에서나) |
-| Space | 전체 드론 정지 (큐 비움 + hover) |
-| 화살표 / MMB 드래그 / 휠 | 전략 카메라 팬·줌 |
-| Home / Backspace | 전략 카메라 Cube 위로 재중심 |
-| M / Shift+M | 미니맵 토글 / 기본 크기로 리셋 |
-
-PX4 SITL 드론 (`drone_sitl_N`, 주황 — `docker-compose.sitl.yml` 떠 있을 때):
-
-| 입력 | 동작 |
-|---|---|
-| RMB / Ctrl+드래그 / Shift+RMB | 기존 SetWaypoint / SetPath / Queue 와 동일 (자동 라우팅) |
-| Numpad7 / Numpad8 / Numpad9 / Numpad6 | ARM / TAKEOFF (5m) / LAND / RTL (`SitlControlInput`) |
-| F9 | SITL 드론 추가 spawn (현재 1대 전제) |
-
-전체 키 매핑은 [`조작법.md`](조작법.md) 참조.
+> FireSim · 전략 뷰 · SITL 의 전체 입력(컨트롤 그룹, 고도 프리셋, 미니맵, 디스플레이 교환 등)은 [`조작법.md`](조작법.md) 참조.
 
 ## 멀티 디스플레이
 
