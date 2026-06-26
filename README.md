@@ -146,24 +146,15 @@ GitHub 저장소에는 100 MB 이상의 RF-DETR 가중치 및 캡처 세션이 �
 
 ## Docker Hub 이미지
 
-추론·SITL 환경을 직접 구성하지 않고 사전 빌드 이미지로 바로 쓸 수 있다. 무거운 의존성(`rfdetr`/`rfdetr_plus` + PyTorch + CUDA, PX4 + Gazebo + MAVSDK)이 모두 포함돼 있어, 메인 파이프라인의 `requirements.txt` 설치 없이도 컨테이너에서 추론이 가능하다.
-
-| 이미지 | 태그 | 내용 | 사용하는 compose |
-|---|---|---|---|
-| [`hanmyeongil/ipwebcam_rfdetr`](https://hub.docker.com/r/hanmyeongil/ipwebcam_rfdetr) | `v2` | RF-DETR 추론(`rfdetr`/`rfdetr_plus`) + PyTorch + CUDA + info_service 의존성 | `docker-compose.yml` |
-| [`hanmyeongil/px4-sitl`](https://hub.docker.com/r/hanmyeongil/px4-sitl) | `v1.16-harmonic` | PX4 v1.16 SITL + Gazebo Harmonic + MAVSDK 브리지 | `docker-compose.sitl.yml` |
+- [`hanmyeongil/ipwebcam_rfdetr`](https://hub.docker.com/r/hanmyeongil/ipwebcam_rfdetr) `:v2`
+- [`hanmyeongil/px4-sitl`](https://hub.docker.com/r/hanmyeongil/px4-sitl) `:v1.16-harmonic`
 
 ```bash
-# 추론 환경
-docker compose pull                              # hanmyeongil/ipwebcam_rfdetr:v2
-docker compose up -d rf_detr_docker
-
-# PX4 SITL + Unity 브리지
-docker compose -f docker-compose.sitl.yml pull   # hanmyeongil/px4-sitl:v1.16-harmonic
-docker compose -f docker-compose.sitl.yml up -d px4_sitl px4_bridge
+docker compose pull && docker compose up -d rf_detr_docker
+docker compose -f docker-compose.sitl.yml pull && docker compose -f docker-compose.sitl.yml up -d px4_sitl px4_bridge
 ```
 
-`ipwebcam_rfdetr:v1` 은 info_service 의존성 추가 전 버전이다. SITL 이미지는 `docker compose -f docker-compose.sitl.yml build px4_sitl` 로 직접 빌드도 가능하다(첫 빌드 ~30분). 두 compose 파일 모두 NVIDIA 런타임과 특정 볼륨 마운트(`/mnt/ssd_0/...`)를 전제하므로 환경에 맞게 조정한다.
+볼륨 마운트: `/mnt/ssd_0/workspace`, `/mnt/ssd_0/dataset` (환경에 맞게 조정).
 
 ## Python 실행
 
