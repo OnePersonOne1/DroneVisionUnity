@@ -10,7 +10,7 @@
 ## 결과: LLM 브리핑 + 드론 제어 + Object detection + 전략적 보기 제공
 ![result](presentation/result.png)
 ![building information](presentation/Arbitary_building_information.png)
-![architecture](presentation/Drone_control.png)
+![drone control](presentation/Droe_control.png.png)
 ![strategic view](presentation/TopView.png)
 
 ## 3D Map: Incheon
@@ -141,7 +141,7 @@ QGroundControl AppImage 호스트 실행 → 좌상단 `Q` → Application Setti
 
 SITL 드론의 시각 spawn 기준점은 `MavlinkFlightModel.spawnReference → CubeGPSDisplay.cubeObject → anchorObject` 순으로 결정 — anchorObject(예: `Point1`) 가 시야 밖이라도 cube 앞에 뜨도록 자동 fallback. GPS 변환의 anchor 자체는 무변경.
 
-#### 기계제어 분석 도구 (포트폴리오용)
+#### 기계제어 분석 도구
 
 ```bash
 # step response 자동 측정 (CSV + PNG + 메트릭)
