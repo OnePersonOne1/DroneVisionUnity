@@ -69,7 +69,7 @@ COCO 사전학습 (80-class) — `person` / `car` / `truck` 등 일반 객체를
 
 ### 대안
 
-- **모델 병행** — 일반 객체(`person`/`car`/`truck`)는 위 데모처럼 COCO 사전학습 80-class 가 안정적이다. 도메인 클래스(`fire`/`smoke`/`lake`)만 커스텀으로 두고 둘을 병행·앙상블하면 약한 `human`·`fire` AP 를 우회할 수 있다. COCO 비교 추론은 `python3 infer.py --coco` 로 바로 재현된다.
+- **모델 병행** — 일반 객체(`person`/`car`/`truck`)는 위 데모처럼 COCO 사전학습 80-class 가 안정적이다. 도메인 클래스(`fire`/`smoke`/`lake`)만 커스텀으로 두고 둘을 거리와 상황에 따라서 전환하면 약한 `human`·`fire` 추론 성능을 우회할 수 있을 것이다. COCO 비교 추론은 `python3 infer.py --coco` 로 바로 재현된다.
 - **학습 개선** — `human`·`fire` 표본 추가 + 클래스 밸런싱(오버샘플/loss 가중) + 데이터 증강, 그리고 early stopping·backbone freeze 로 과적합을 늦추면 커스텀 단독 성능도 끌어올릴 여지가 있다.
 
 ## 구성 요소
