@@ -238,7 +238,7 @@ KAKAO_REST_API_KEY=<발급키> python3 info_server.py   # localhost:8077
 
 키 없이도 동작하지만 startup 경고 후 OSM/GIS 만으로 enrich → '이름 미상 건물' 비중이 늘어난다. `docker compose up` 으로 컨테이너 환경이면 `.env` (gitignored) 에서 `KAKAO_REST_API_KEY=...` 한 줄 두는 게 표준 (자세한 건 `.env.example` 참고).
 
-선택적 LLM (브리핑 합성 전용): `ollama serve` 가 떠 있고 모델(`qwen2.5:14b` 기본)이 로드돼 있으면 브리핑이 자연스러운 한국어로 합성된다. 안 떠 있어도 동일한 정형 fact 로부터 template 브리핑이 즉시 반환된다. `INFO_LLM_TIMEOUT` 으로 응답 대기 시간 조정 (기본 15s).
+선택적 LLM (브리핑 합성 전용): `ollama serve` 가 떠 있고 모델(`qwen2.5:14b` 기본)이 로드돼 있으면 브리핑이 자연스러운 한국어로 합성된다. 안 떠 있어도 같은 의미의 template 브리핑이 즉시 반환된다. `INFO_LLM_TIMEOUT` 으로 응답 대기 시간 조정 (기본 15s).
 
 엔드포인트:
 - `POST /building_info` `{lat,lng}` → 정형 8필드 카드.
@@ -248,7 +248,7 @@ KAKAO_REST_API_KEY=<발급키> python3 info_server.py   # localhost:8077
 
 ### 실시간 동기화 모드 (선택)
 
-기본 파이프라인은 **검출 0개 프레임을 송신하지 않는다**(안전·기존 호환). 캡처 타임라인의 공백까지 Unity 가 그대로 받아야 하면 다음을 사용한다.
+기본 파이프라인은 검출 0개 프레임을 송신하지 않는다(효율 상승). 실시간 동기화 모드는 이렇게 아무것도 검출되지 않은 화면도 송신한다.
 
 - **오프라인 재생**: `python3 replay_offline.py --realtime`
   - sensor CSV 의 모든 캡처 `frame_id` 를 원본 `sys_time` 간격으로 송신.
@@ -288,8 +288,8 @@ KAKAO_REST_API_KEY=<발급키> python3 info_server.py   # localhost:8077
 ## 추가 시각화 (월드 공간)
 
 - **드론 nametag** (`DroneNameTagManager`): 각 드론 머리 위 TextMeshPro 3D 라벨 `{N}\nAGL: {m} m` (N = 1, 2, 3, …), 카메라 빌보드. 모든 디스플레이 공통.
-- **웨이포인트 시각화** (`WaypointWorldVisualizer`): 현재 타겟·큐 wp 에 **반투명 무한 높이 원기둥** + 드론→타겟→큐 경로 라인. 원기둥은 선택 노랑·비선택 시안. 추가로 **지면 raycast 한 지점에 큰 반투명 디스크** (`showGroundDiscs`, 선택 노랑·비선택 주황) — RTS 스타일 도착 마커. URP 투명 머티리얼 자동 생성.
-- **선택 드론 강조** (`SelectedDroneHighlighter`): 명시 선택된 드론 (`selectedDroneIds` 에 들어있는 ID) 마다 **불투명 초록 wireframe 큐브** 를 두름. 1인칭/3인칭/전략 모든 카메라에서 가시. 선택 0개(전체 명령 모드) 일 때는 표시 X. 씬에 없으면 자동 부트스트랩(`RuntimeInitializeOnLoadMethod`).
+- **웨이포인트 시각화** (`WaypointWorldVisualizer`): 현재 타겟·큐 wp 에 **반투명 무한 높이 원기둥** + 드론→타겟→큐 경로 라인. 원기둥은 선택 노랑·비선택 하늘색. 추가로 **지면 raycast 한 지점에 큰 반투명 원** (`showGroundDiscs`, 선택 노랑·비선택 주황) — RTS 스타일 도착 마커. URP 투명 머티리얼 자동 생성.
+- **선택 드론 강조** (`SelectedDroneHighlighter`): 명시 선택된 드론 (`selectedDroneIds` 에 들어있는 ID) 마다 **불투명 초록 wireframe 큐브** 를 두름. 1인칭/3인칭/전략 모든 카메라에서 가시. 선택 0개(전체 명령 모드) 일 때는 표시 X.
 - **AGL(지상고도)** (`GroundAgl`): 드론 위치에서 아래 방향 `Physics.Raycast`(terrain single-side 시 backface 폴백)로 지면까지 거리 / `unityUnitsPerMeter`. 라벨·전략 뷰 모두 동일 소스.
 
 ## 명령 고도 프리셋 (전략 뷰)
@@ -299,9 +299,9 @@ KAKAO_REST_API_KEY=<발급키> python3 info_server.py   # localhost:8077
 - `PgUp` / `PgDn` : ±5 m (`PgDn` 은 0 하한)
 - `End` : 0 (= 지면 그대로)
 - `F1`–`F5` : 10 / 30 / 50 / 100 / 200 m 프리셋 (숫자 `1`–`9` 는 RTS 컨트롤 그룹용으로 비웠음)
-- `Ctrl + 1`–`9` (또는 `Alt + 1`–`9`) 그룹 저장, `1`–`9` 단독 그룹 호출 (StarCraft 부대지정 방식). Editor 에서 Ctrl+digit 가 윈도우 단축키로 가로채면 Alt 모디파이어 사용.
-- `Space` : 전체 드론 정지 (큐 비움 + 현 자리 hover, RTS 의 Stop=S 대응).
-- `ESC` : 선택 해제 → 전체 드론 대상 모드 복귀 (어느 디스플레이에서나).
+- `Ctrl + 1`–`9` (또는 `Alt + 1`–`9`) 그룹 저장, `1`–`9` 단독 그룹 호출 (StarCraft 부대지정 방식).
+- `Space` : 전체 드론 정지 (큐 비움 + 현 자리 hover).
+- `ESC` : 전체 드론 선택 해제
 
 ## HUD 런타임 튜너
 
@@ -352,14 +352,14 @@ Unity/Assets/Tests/EditMode/         (NUnit)
 ## 좌표계 규약
 
 - Unity world: `X = East`, `Y = Up`, `Z = North`.
-- GPS↔world 변환은 `CubeGPSDisplay` 가 단일 진실 공급원이다. 앵커 위경도, `horizontalScaleFactor`, `altitudeReferenceBuilding`, `referenceBuildingHeightMeters` 가 직렬화 필드로 보존된다.
+- GPS↔world 변환은 `CubeGPSDisplay`으로만 진행한다. 앵커 위경도, `horizontalScaleFactor`, `altitudeReferenceBuilding`, `referenceBuildingHeightMeters` 등 모든 보정 값이 CubeGPSDisplay의 Inspector 필드로 모여 있어, 한 곳에서 수정하면 씬 전체에 반영된다.
 - 맵 메시는 앵커를 기준으로 사전 회전되어 있으므로 GPS↔world 변환은 회전을 적용하지 않는다.
 - 드론 시뮬레이션 코어는 SI 미터를 사용하며, Unity world 와의 스케일 변환은 어댑터 경계 한 곳(`FrameConversion`)에서만 수행한다.
 
 ## 씬 / 빌드
 
 - 메인 씬: `Assets/Scenes/SampleScene.unity`. Build Settings 에 등록되어 있다.
-- Play 모드 변경은 휘발성이다. Inspector 보정 값을 영구 반영하려면 Play 정지 상태에서 수정 후 씬을 저장한다.
+- Play 모드 변경은 휘발성(즉, 꺼지면 변경사항이 전부 사라진다.)이다. Inspector 보정 값을 영구 반영하려면 Play 정지 상태에서 수정 후 씬을 저장한다.
 - `TextMesh Pro/Examples & Extras/` 의 샘플 씬은 파이프라인과 무관하다.
 
 ## 알려진 제약
@@ -371,10 +371,9 @@ Unity/Assets/Tests/EditMode/         (NUnit)
 
 ## 향후 목표
 
-- **PX4 SITL 다중 드론**: 현재 1대 전제 (`MavlinkFlightModel` 이 udp:9871/9872 단독 bind, `px4_bridge.py` 가 단일 MAVSDK 연결). 다중 활성화하려면 (a) PX4 SITL 인스턴스를 별 포트(14541, 14542, …) 로 분리, (b) `px4_bridge.py` 를 N MAVSDK 다중화하고 텔레메트리에 `system_id` 부착, (c) Unity 측 9871 single-socket 을 sysid → DroneAgent 라우터로 재설계 필요. 시뮬 드론 (`drone_sim_obj_N`) 은 이미 다중 지원이라 시뮬 N + SITL 1 운영으로 우회 가능 — 추가 작업은 후속 task.
-- **음성·LLM 명령 입력**: 현재 LLM 은 `/assess` 표시 전용. 음성/자연어로 SetWaypoint 같은 명령 트리거는 미지원 — 안전 우선 (LLM 출력이 제어 경로에 직결되지 않음).
-- **빌드 자동화**: 현재 검증은 Editor Play 또는 `SitlPlayCheck.Run` 의 xvfb 헤드리스. CI 통합 (GitHub Actions 등) 미설정.
+- **PX4 SITL 다중 드론**: 현재 1대 전제 (`MavlinkFlightModel` 이 udp:9871/9872 단독 bind, `px4_bridge.py` 가 단일 MAVSDK 연결). 다중 활성화하려면 (a) PX4 SITL 인스턴스를 별 포트(14541, 14542, …) 로 분리, (b) `px4_bridge.py` 를 N MAVSDK 다중화하고 텔레메트리에 `system_id` 부착, (c) Unity 측 9871 single-socket 을 sysid → DroneAgent 라우터로 재설계 필요. 시뮬 드론 (`drone_sim_obj_N`) 은 이미 다중 지원이라 시뮬 N개 드론 + SITL 1개 드론 운영 가능 — 추가 작업은 후속 task.
 
-## 라이선스
+## 라이센스
 
+상업적 배포가 가능하도록 오픈소스를 선택했음. 본 프로젝트 라이센스는 추후 결정
 (추가 예정)
