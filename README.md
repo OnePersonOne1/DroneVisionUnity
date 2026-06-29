@@ -4,6 +4,9 @@
 
 좌표 변환 규약 상세는 [`Unity/PIPELINE_MERGE_NOTES.md`](Unity/PIPELINE_MERGE_NOTES.md), 키 매핑은 [`조작법.md`](조작법.md) 참고.
 
+# 최종 결과
+26 항공우주요소설계1 프로젝트Lab - 대상 수상
+
 # Demo
 
 ## 통합 결과 — LLM 브리핑 · 드론 제어 · 객체 검출 · 전략 보기
